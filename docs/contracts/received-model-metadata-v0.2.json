@@ -1,0 +1,128 @@
+{
+  "inspection_version": "static-handoff-inspection-v1",
+  "date": "2026-09-26",
+  "source_directory_name": "deployment_handoff",
+  "method": "stdlib SHA256, JSON, AST constants and pickletools opcode decoding; no pickle/torch deserialization or imported handoff code",
+  "files": [
+    {
+      "file": "README_KO.md",
+      "bytes": 6713,
+      "sha256": "083fab3aa434e19bd7ba8d2cae9d8461d375da7f582b43d322e0771c2774c030",
+      "matches_manifest": true
+    },
+    {
+      "file": "requirements.txt",
+      "bytes": 170,
+      "sha256": "246bfe95cff1278cf2463770c624ff0a63e292640ce899245891d4b2eb9688a8",
+      "matches_manifest": true
+    },
+    {
+      "file": "handoff_example.json",
+      "bytes": 1056,
+      "sha256": "c67412418bbb32409dd560cedb19524f22a43c92d6dae3850ae4d435cfd61888",
+      "matches_manifest": true
+    },
+    {
+      "file": "timeline.py",
+      "bytes": 2158,
+      "sha256": "86ea59d83623554fedf4e08df95f4dec07bddbf41486b6a6493f4d21daf77f20",
+      "matches_manifest": true
+    },
+    {
+      "file": "pipeline.py",
+      "bytes": 11368,
+      "sha256": "18a5a2bca54395332e227b6e75f4aef11e8b703140e48d0ae7221f1ffca35d60",
+      "matches_manifest": true
+    },
+    {
+      "file": "infer_one_video.py",
+      "bytes": 1458,
+      "sha256": "30e647f87d077d87b5c0ae013985b6321a5bd198adde73a6e5cf77dd3e15133a",
+      "matches_manifest": true
+    },
+    {
+      "file": "streaming.py",
+      "bytes": 5359,
+      "sha256": "076e8d15900b5f1304fe92b1f80bb1261afe74a710f77dc83941ddab79256be5",
+      "matches_manifest": true
+    },
+    {
+      "file": "streaming_demo.py",
+      "bytes": 1773,
+      "sha256": "aa5075c53d7785dc8ad7fcc4f0c868c08494cb31e211b86bc1bc2d5312747430",
+      "matches_manifest": true
+    },
+    {
+      "file": "make_release.py",
+      "bytes": 1987,
+      "sha256": "98abfd224a34c244c081c63ddc6b2b04dbb81d467257239affe8c212be8c4bef",
+      "matches_manifest": true
+    },
+    {
+      "file": "models/yolo11s_accident_150_e30_best.pt",
+      "bytes": 19156378,
+      "sha256": "44f7e937068ec8862e30245314ec1cd54d6782e716eec1abc3fcf3ab7b761007",
+      "matches_manifest": true
+    },
+    {
+      "file": "models/x3d_s_real_so_tad_epoch7_best_model.pt",
+      "bytes": 36344683,
+      "sha256": "ca2db4a25c9cd2d859a7143932d911a3351beacc5193de3ada16f3115bea09bf",
+      "matches_manifest": true
+    }
+  ],
+  "yolo": {
+    "class_map": {
+      "0": "Pedestrian",
+      "1": "Car",
+      "2": "Truck",
+      "3": "Bus",
+      "4": "Motorcycle",
+      "5": "Bicycle",
+      "6": "Dynamic"
+    },
+    "class_count": 7,
+    "checkpoint_epoch_scalar": [
+      -1
+    ],
+    "dynamic_label_definition": "unconfirmed; retain class ID 6"
+  },
+  "x3d": {
+    "epoch": [
+      7
+    ],
+    "threshold": [
+      0.5
+    ]
+  },
+  "pipeline_constants": {
+    "FRAME_SIZE": 182,
+    "FRAMES_PER_WINDOW": 16,
+    "MEAN": [
+      0.45,
+      0.45,
+      0.45
+    ],
+    "STD": [
+      0.225,
+      0.225,
+      0.225
+    ],
+    "YOLO_IMAGE_SIZE": 640,
+    "YOLO_CONFIDENCE": 0.25,
+    "MAX_VIDEO_SECONDS": 120.0
+  },
+  "timeline_constants": {
+    "WINDOW_SECONDS": 2.0,
+    "STRIDE_SECONDS": 1.0,
+    "THRESHOLD": 0.5
+  },
+  "not_verified": [
+    "tensor shapes and state_dict loading",
+    "model inference",
+    "training history",
+    "reported SO-TAD 400 evaluation",
+    "end-to-end latency",
+    "source PTS alignment"
+  ]
+}

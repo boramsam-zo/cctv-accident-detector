@@ -1,13 +1,18 @@
 # 프로젝트 폴더 구조
 
-상태: 제안
+상태: 기본 폴더 생성 완료 · 서비스 상세는 PRD v0.2 개발 제안
 적용 범위: 팀 공용 모노레포 초기 구성
+
+## 최신 개발 문서
+
+[PRD](../PROJECT_BRIEF.md), [공통 계약](contracts/service_contract.md), [역할별 문서](roles/README.md)를 개발 기준으로 사용합니다. API·추론 필드는 공통 계약에서 관리합니다. 실제 구현 상태는 [현재 상태](current_status.md)를 따릅니다.
 
 ## 전체 처리 구조
 
 ```text
 Streamlit → EC2 백엔드 → S3 원본 영상 저장
-→ Modal 비동기 GPU 추론 (YOLO11s 객체 탐지, X3D-S 충돌 의심 탐지)
+→ BE 작업 프로세스가 Modal 제출·완료 회수
+→ Modal GPU: X3D-S 후보 구간 → 후보 장면의 YOLO11s 객체 정보
 → S3 분석 영상·대표 프레임·JSON 저장
 → EC2 백엔드에서 외부 VLM API 호출 → RAG 검색
 → DB 작업 상태·리포트 저장 → Streamlit 결과 표시
@@ -20,20 +25,21 @@ Streamlit → EC2 백엔드 → S3 원본 영상 저장
 ```text
 EC2
 ├── Streamlit
-└── FastAPI 백엔드
+├── FastAPI 백엔드
+└── BE 작업 프로세스 (제출·회수·VLM/RAG 후속 처리)
 
 Modal
 └── GPU 추론 앱
 
 AWS
 ├── S3
-├── DynamoDB 또는 PostgreSQL
+├── PostgreSQL 제안 (최종 배포 선택 미정)
 └── CloudWatch
 ```
 
 처음에는 Streamlit과 백엔드를 같은 EC2 인스턴스에서 실행합니다. Streamlit은 백엔드 API를 통해서만 분석을 요청하며, GPU 추론은 Modal에서 실행합니다. 프로세스 실행 방식과 공개 접속 구성은 배포 단계에서 정합니다.
 
-## 현재 생성된 구조
+## 모델·학습 기본 구조
 
 ```text
 .
@@ -57,7 +63,7 @@ AWS
     └── README.md
 ```
 
-추천 파일과 세부 폴더는 아직 생성하지 않았습니다. 기존 모델 코드, 테스트, 노트북, 산출물이 인계되면 보존하면서 해당 위치로 옮깁니다.
+위 트리는 모델·학습 기본 구조를 설명합니다. 현재 추가된 PRD와 역할·계약·기록 문서는 [문서 목록](README.md)을 참고하세요. 추천 코드와 세부 폴더는 아직 생성하지 않았습니다. 인계할 모델 코드·테스트·노트북은 검토 후 기존 책임에 맞게 연결합니다.
 
 ## 폴더 책임
 
@@ -87,7 +93,7 @@ AWS
 | `training/object_detection/` | `configs/train.yaml`, `notebooks/train_yolo11s.ipynb`, `notebooks/evaluate_yolo11s.ipynb` | YOLO11s 학습 설정·실험·평가 |
 | `training/collision_detection/` | `configs/train_x3d_s.yaml`, `notebooks/train_x3d_s.ipynb`, `notebooks/evaluate_x3d_s.ipynb` | X3D-S 학습 설정·실험·평가 |
 | `tests/smoke/` | `test_local_inference.py`, `test_model_loading.py` | 샘플 영상 추론·모델 로드 확인 |
-| `docs/` | `PROJECT_CONTEXT.md`, `INFERENCE_CONTRACT.md`, `API_DOCS.md`, `DECISIONS.md`, `TEST_PLAN.md` | 범위·추론 계약·API·결정 기록·검증 기준 |
+| `docs/` | `contracts/service_contract.md`, `roles/`, `requirements.md`, `PROGRESS.md` | 현재 PRD의 계약·역할·요구사항·실행 기록 |
 
 대용량 가중치와 데이터 원본은 저장소에 직접 추가하지 않고 저장 위치를 문서화합니다. 학습 노트북과 Colab 전용 코드는 운영 추론 패키지에서 import하지 않습니다.
 
@@ -104,8 +110,8 @@ AWS
 ## 초기 구현 순서
 
 1. 모델 가중치와 설정 인계 및 SHA256 확인
-2. 로컬에서 YOLO11s와 X3D-S 공통 추론 실행
-3. 공통 추론 JSON 계약 확정
+2. 코드·설정을 로컬에서 준비하고 승인한 GPU 환경에서 공통 추론 확인
+3. 공통 계약 초안 검토·가상 응답으로 FE/BE 착수 (모델 연결과 병행 가능)
 4. Modal에서 같은 추론 코드 실행
 5. S3 입력·결과 저장 연결
 6. EC2 백엔드의 분석 제출·상태 조회 구현
