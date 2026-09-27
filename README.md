@@ -7,7 +7,7 @@
 ## 팀원 시작 안내
 
 1. [전체 PRD](PROJECT_BRIEF.md): 목표·범위·아키텍처.
-2. [공통 API·데이터 계약](docs/contracts/service_contract.md): 작업 상태·모델 출력·오류·검토 저장.
+2. [공통 API·데이터 계약](docs/contracts/service_contract.md)과 [HTTP API 상세 명세](docs/contracts/api-spec-v0.2.md): 작업 상태·요청/응답·오류·검토 저장.
 3. [담당 역할 문서](docs/roles/README.md): FE·BE·모델·VLM/RAG·인프라·QA.
 4. [구현 계획](IMPLEMENTATION_PLAN.md)과 [현재 상태](docs/current_status.md).
 

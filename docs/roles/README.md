@@ -13,7 +13,7 @@
 |---|---|---|
 | FE | [frontend.md](frontend.md) | Streamlit 사용자 흐름·상태 표시·API 연결 |
 | BE | [backend.md](backend.md) | FastAPI·DB·작업 제출/회수·검토 저장 |
-| 모델 | [model.md](model.md) | YOLO11s/X3D-S 입출력·근거 생성·Modal 함수 |
+| 모델 | [model.md](model.md) | YOLO11s/X3D-S 입출력·근거 생성·Runpod worker |
 | VLM/RAG | [vlm_rag.md](vlm_rag.md) | 장면 설명·문서 검색·출처·보고 초안 |
 | 인프라 | [infrastructure.md](infrastructure.md) | 배포 위치·권한·비용·보관·관측 |
 | QA·통합 | [validation.md](validation.md) | 실제 인수 기록·누락/중복/복구·품질 구분 |
