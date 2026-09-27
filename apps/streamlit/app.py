@@ -111,8 +111,8 @@ def inject_styles() -> None:
             background: white; border: 1px solid var(--line); border-radius: 10px;
             padding: 1rem 1.1rem; margin-bottom: .8rem; box-shadow:0 1px 3px rgba(15,23,42,.04);
         }
-        .job-strip { display:flex; align-items:center; justify-content:space-between; gap:1rem; background:#fff; border:1px solid var(--line); border-radius:10px; padding:.7rem .9rem; margin:.35rem 0 .7rem; }
-        .job-title { font-size:.92rem; font-weight:750; }
+        .job-compact { display:flex; align-items:center; justify-content:space-between; gap:.6rem; background:#fff; border:1px solid var(--line); border-radius:10px 10px 0 0; padding:.6rem .8rem; }
+        .job-facts { background:#f8fafc; border:1px solid var(--line); border-top:0; border-radius:0 0 10px 10px; padding:.45rem .8rem; margin-bottom:.6rem; font-size:.78rem; color:#334155; }
         .job-meta { color:#64748b; font:500 .67rem 'JetBrains Mono'; margin-top:.15rem; }
         .metrics-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.65rem; margin-bottom:.65rem; }
         .metric-card { background:#fff; border:1px solid var(--line); border-radius:8px; padding:.65rem .8rem; position:relative; overflow:hidden; }
@@ -129,12 +129,12 @@ def inject_styles() -> None:
         }
         .section-kicker { color:#1d4ed8; font:700 .7rem 'JetBrains Mono'; letter-spacing:.05em; margin-bottom:.28rem; }
         .video-shell { background:#17243a; border-radius:10px; overflow:hidden; border:1px solid #253a55; box-shadow:0 6px 18px rgba(15,23,42,.16); }
-        .video-header { display:flex; justify-content:space-between; align-items:center; padding:.62rem .85rem; color:#e8eef8; font:600 .7rem 'JetBrains Mono'; border-bottom:1px solid #31445f; }
+        .video-header { background:#17243a; border-radius:10px 10px 0 0; display:flex; justify-content:space-between; align-items:center; padding:.62rem .85rem; color:#e8eef8; font:600 .7rem 'JetBrains Mono'; border-bottom:1px solid #31445f; }
         .video-live { color:#fff; background:#b91c1c; padding:.18rem .45rem; border-radius:3px; margin-right:.45rem; }
         .video-empty { min-height:250px; display:grid; place-items:center; color:#94a3b8; text-align:center; background:linear-gradient(145deg,#142238,#22344e); position:relative; overflow:hidden; }
         .video-empty > div { position:relative; z-index:1; }
         .video-empty:before { content:''; position:absolute; width:240px; height:240px; border:1px solid rgba(148,163,184,.08); border-radius:50%; box-shadow:0 0 0 55px rgba(148,163,184,.025),0 0 0 110px rgba(148,163,184,.018); }
-        .video-footer { padding:.65rem .85rem; color:#cbd5e1; font:500 .68rem 'JetBrains Mono'; border-top:1px solid #31445f; }
+        .video-footer { background:#17243a; border-radius:0 0 10px 10px; margin-top:-1rem; padding:.65rem .85rem; color:#cbd5e1; font:500 .68rem 'JetBrains Mono'; border-top:1px solid #31445f; }
         .timeline { height:7px; border-radius:9px; background:#3b4c64; position:relative; overflow:hidden; margin:.45rem 0; }
         .timeline-fill { height:100%; background:#2563eb; }
         .candidate-marker { position:absolute; top:0; bottom:0; width:12px; background:#dc2626; box-shadow:0 0 8px #ef4444; }
@@ -144,7 +144,6 @@ def inject_styles() -> None:
         .analysis-box p { margin:.2rem 0; }
         .analysis-label { color:#1d4ed8; font:700 .68rem 'JetBrains Mono'; }
         .rag-item { background:#eef4ff; border-radius:6px; padding:.75rem; margin:.45rem 0; }
-        .review-banner { background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:.75rem; margin-bottom:.7rem; }
         .upload-row { display:flex; justify-content:space-between; align-items:center; gap:1rem; background:#fff; border:1px solid var(--line); border-radius:7px; padding:.62rem .75rem; margin:.4rem 0; }
         .upload-name { font-size:.8rem; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .upload-meta { color:#64748b; font:500 .65rem 'JetBrains Mono'; }
@@ -433,23 +432,27 @@ def render_upload() -> None:
     render_video_gallery()
 
 
-def render_overview(result: dict[str, Any]) -> None:
-    coverage = result["coverage"]
+def render_job_summary(result: dict[str, Any]) -> None:
     candidate_count = len(result["candidates"])
-    checked = coverage["predicted_windows"]
-    scheduled = coverage["scheduled_windows"]
-
+    coverage = result["coverage"]
     st.markdown(
-        f"""<div class="job-strip"><div><div class="section-kicker">ACTIVE ANALYSIS JOB</div>
-        <div class="job-title">{STATUS_LABELS[result['status']]}</div>
-        <div class="job-meta">{result['job_id']} &nbsp;·&nbsp; {result['run_id']}</div></div>
+        f"""<div class="job-compact"><div><div class="section-kicker">ANALYSIS JOB</div>
+        <div class="job-meta">{result['job_id']}</div></div>
         <div><span class="status-chip">{STATUS_LABELS[result['status']]}</span>
-        <span class="demo-chip">DEMO DATA</span></div></div>""",
+        <span class="demo-chip">DEMO</span></div></div>
+        <div class="job-facts">의심 후보 <strong>{candidate_count}건</strong> &nbsp;·&nbsp;
+        처리 <strong>{coverage['predicted_windows']} / {coverage['scheduled_windows']}</strong></div>""",
         unsafe_allow_html=True,
     )
+    level, message = status_message(result)
+    getattr(st, level)(message)
+
+
+def render_metrics(result: dict[str, Any]) -> None:
+    coverage = result["coverage"]
     metrics = [
-        ("처리 범위", f"{checked} / {scheduled}"),
-        ("의심 후보", f"{candidate_count}건"),
+        ("처리 범위", f"{coverage['predicted_windows']} / {coverage['scheduled_windows']}"),
+        ("의심 후보", f"{len(result['candidates'])}건"),
         ("미분류", f"{coverage['unclassified_windows']}구간"),
         ("영상 길이", f"{result['video']['duration_seconds']:.1f}초"),
     ]
@@ -458,9 +461,7 @@ def render_overview(result: dict[str, Any]) -> None:
         for label, value in metrics
     )
     st.markdown(f'<div class="metrics-grid">{metric_html}</div>', unsafe_allow_html=True)
-
-    level, message = status_message(result)
-    getattr(st, level)(message)
+    st.caption(f"{result['job_id']} · {result['run_id']}")
 
 
 def render_stages(result: dict[str, Any]) -> None:
@@ -495,11 +496,8 @@ def render_coverage(result: dict[str, Any]) -> None:
         )
 
 
-def render_video_console(candidate: dict[str, Any], result: dict[str, Any]) -> None:
+def render_video_console(candidate: dict[str, Any] | None, result: dict[str, Any]) -> None:
     duration = result["video"]["duration_seconds"]
-    start = candidate["start_seconds"]
-    end = candidate["end_seconds"]
-    marker_position = min(98.0, max(0.0, start / duration * 100)) if duration else 0.0
     processed = result["coverage"]["predicted_windows"]
     scheduled = result["coverage"]["scheduled_windows"]
     fill = processed / scheduled * 100 if scheduled else 0
@@ -512,6 +510,17 @@ def render_video_console(candidate: dict[str, Any], result: dict[str, Any]) -> N
     else:
         video_name = "DEMO VIDEO · 실제 영상 없음"
         video_content = None
+
+    if candidate:
+        start = candidate["start_seconds"]
+        end = candidate["end_seconds"]
+        marker_position = min(98.0, max(0.0, start / duration * 100)) if duration else 0.0
+        marker_html = f'<div class="candidate-marker" style="left:{marker_position:.1f}%"></div>'
+        range_text = f"후보 {start:.1f}–{end:.1f}s &nbsp; | &nbsp; 전체 {duration:.1f}s"
+    else:
+        start = 0.0
+        marker_html = ""
+        range_text = f"전체 {duration:.1f}s"
 
     st.markdown(
         f"""<div class="video-shell"><div class="video-header"><span><span class="video-live">ANALYSIS</span>
@@ -529,22 +538,22 @@ def render_video_console(candidate: dict[str, Any], result: dict[str, Any]) -> N
     st.markdown(
         f"""<div class="video-footer"><span>0.0s</span>
         <div class="timeline"><div class="timeline-fill" style="width:{fill:.1f}%"></div>
-        <div class="candidate-marker" style="left:{marker_position:.1f}%"></div></div>
-        <span>후보 {start:.1f}–{end:.1f}s &nbsp; | &nbsp; 전체 {duration:.1f}s</span></div></div>""",
+        {marker_html}</div>
+        <span>{range_text}</span></div></div>""",
         unsafe_allow_html=True,
     )
-    st.markdown(
-        f"""<div class="evidence-card"><strong>사고 의심 후보 · {start:.1f}–{end:.1f}초</strong>
-        <span class="score" style="float:right">MODEL SCORE {candidate['score']:.2f}</span><br>
-        <small>이 값은 후보 선별 점수이며 보정된 사고 확률이나 확정 판정이 아닙니다.</small></div>""",
-        unsafe_allow_html=True,
-    )
+    if candidate:
+        st.markdown(
+            f"""<div class="evidence-card"><strong>사고 의심 후보 · {start:.1f}–{end:.1f}초</strong>
+            <span class="score" style="float:right">MODEL SCORE {candidate['score']:.2f}</span><br>
+            <small>이 값은 후보 선별 점수이며 보정된 사고 확률이나 확정 판정이 아닙니다.</small></div>""",
+            unsafe_allow_html=True,
+        )
 
 
 def render_ai_analysis(candidate: dict[str, Any]) -> None:
     vlm = candidate["vlm"]
-    st.markdown('<div class="section-kicker">03 · VLM SCENE ANALYSIS</div>', unsafe_allow_html=True)
-    st.markdown("#### AI 사고 장면 분석")
+    st.markdown('<div class="section-kicker">VLM SCENE ANALYSIS</div>', unsafe_allow_html=True)
     if vlm["status"] == "running":
         st.info("후보 장면 설명을 생성하고 있습니다.")
     elif vlm["status"] == "failed":
@@ -559,13 +568,54 @@ def render_ai_analysis(candidate: dict[str, Any]) -> None:
         st.warning(f"불확실성 · {uncertainty}")
 
 
-def render_report_and_review(candidate: dict[str, Any], result: dict[str, Any]) -> None:
-    retrieval = candidate["retrieval"]
-    report = candidate["report"]
+def render_review_form(candidate: dict[str, Any], result: dict[str, Any]) -> None:
     event_id = candidate["event_id"]
+    st.markdown('<div class="section-kicker">HUMAN REVIEW</div>', unsafe_allow_html=True)
+    saved = st.session_state.review_by_event.get(event_id)
+    if saved:
+        st.success(f"저장된 판단: {saved['decision_label']}")
 
-    st.markdown('<div class="section-kicker">04 · RAG EVIDENCE</div>', unsafe_allow_html=True)
-    st.markdown("#### 유사 사례 및 문서 근거")
+    with st.form(f"review-{event_id}"):
+        decision = st.radio(
+            "검토자 최종 판단",
+            options=["confirmed_accident", "not_accident", "uncertain"],
+            format_func={
+                "confirmed_accident": "사고로 확인",
+                "not_accident": "사고 아님",
+                "uncertain": "판단 보류",
+            }.get,
+            horizontal=True,
+            help="모델 결과와 실제 영상을 함께 확인한 뒤 판단해 주세요.",
+        )
+        note = st.text_area("검토 메모", placeholder="판단 근거 또는 추가 확인 사항", height=80)
+        if st.form_submit_button("검토 결과 저장", type="primary", use_container_width=True):
+            labels = {
+                "confirmed_accident": "사고로 확인",
+                "not_accident": "사고 아님",
+                "uncertain": "판단 보류",
+            }
+            st.session_state.review_by_event[event_id] = {
+                "decision": decision,
+                "decision_label": labels[decision],
+                "note": note.strip(),
+                "run_id": result["run_id"],
+                "report_revision": candidate["report"].get("revision"),
+            }
+            st.success("데모 세션에 검토 결과를 저장했습니다.")
+
+
+def render_report(candidate: dict[str, Any]) -> None:
+    report = candidate["report"]
+    if report["status"] == "pending":
+        st.info("보고 초안을 준비하고 있습니다.")
+    else:
+        st.markdown(f'<div class="analysis-box"><p>{report.get("text") or "보고 내용이 없습니다."}</p></div>', unsafe_allow_html=True)
+        for limitation in report.get("limitations", []):
+            st.caption(f"제한사항 · {limitation}")
+
+
+def render_retrieval(candidate: dict[str, Any]) -> None:
+    retrieval = candidate["retrieval"]
     if retrieval["status"] == "insufficient_evidence":
         st.markdown(
             '<div class="rag-item"><strong>문서 근거 부족</strong><br><small>관련성이 충분한 자료를 찾지 못했습니다. 검색 장애를 의미하지 않습니다.</small></div>',
@@ -579,91 +629,63 @@ def render_report_and_review(candidate: dict[str, Any], result: dict[str, Any]) 
         citations = retrieval.get("citations", [])
         st.success(f"관련 근거 {len(citations)}건을 찾았습니다.")
 
-    st.markdown('<div class="section-kicker" style="margin-top:1.2rem">05 · INCIDENT REPORT</div>', unsafe_allow_html=True)
-    st.markdown("#### AI 사고 분석 보고서")
-    if report["status"] == "pending":
-        st.info("보고 초안을 준비하고 있습니다.")
-    else:
-        st.markdown(f'<div class="analysis-box"><p>{report.get("text") or "보고 내용이 없습니다."}</p></div>', unsafe_allow_html=True)
-        for limitation in report.get("limitations", []):
-            st.caption(f"제한사항 · {limitation}")
 
-    st.divider()
-    st.markdown('<div class="section-kicker">06 · HUMAN REVIEW</div>', unsafe_allow_html=True)
-    st.markdown("#### 검토자 최종 판단")
-    st.markdown('<div class="review-banner">모델 결과와 실제 영상을 함께 확인한 뒤 판단해 주세요.</div>', unsafe_allow_html=True)
-    saved = st.session_state.review_by_event.get(event_id)
-    if saved:
-        st.success(f"저장된 판단: {saved['decision_label']}")
+def render_pipeline(result: dict[str, Any]) -> None:
+    render_metrics(result)
+    left, right = st.columns([1.2, 0.8], gap="large")
+    with left:
+        render_coverage(result)
+    with right:
+        render_stages(result)
+    for error in result["errors"]:
+        retry = "재시도 가능" if error["retryable"] else "재시도 불가"
+        st.error(f"{error['stage']} · {error['message']} · {retry}")
 
-    with st.form(f"review-{event_id}"):
-        decision = st.radio(
-            "검토 판단",
-            options=["confirmed_accident", "not_accident", "uncertain"],
-            format_func={
-                "confirmed_accident": "사고로 확인",
-                "not_accident": "사고 아님",
-                "uncertain": "판단 보류",
-            }.get,
-            horizontal=True,
-        )
-        note = st.text_area("검토 메모", placeholder="판단 근거 또는 추가 확인 사항")
-        if st.form_submit_button("검토 결과 저장", type="primary", use_container_width=True):
-            labels = {
-                "confirmed_accident": "사고로 확인",
-                "not_accident": "사고 아님",
-                "uncertain": "판단 보류",
-            }
-            st.session_state.review_by_event[event_id] = {
-                "decision": decision,
-                "decision_label": labels[decision],
-                "note": note.strip(),
-                "run_id": result["run_id"],
-                "report_revision": report.get("revision"),
-            }
-            st.success("데모 세션에 검토 결과를 저장했습니다.")
+
+def select_candidate(result: dict[str, Any]) -> dict[str, Any] | None:
+    if not result["candidates"]:
+        return None
+    candidate_labels = {
+        item["event_id"]: f"{item['start_seconds']:.1f}–{item['end_seconds']:.1f}초 · 점수 {item['score']:.2f}"
+        for item in result["candidates"]
+    }
+    selected_event_id = st.selectbox(
+        "검토할 사고 의심 후보",
+        options=list(candidate_labels),
+        format_func=lambda value: candidate_labels.get(value, value),
+    )
+    return next(item for item in result["candidates"] if item["event_id"] == selected_event_id)
 
 
 def render_result(result: dict[str, Any]) -> None:
-    render_overview(result)
-    st.markdown('<div class="section-kicker">02 · INCIDENT REVIEW</div>', unsafe_allow_html=True)
-    if not result["candidates"]:
-        st.markdown("### 사고 의심 후보")
-        if result["detection_outcome"] == "no_candidates":
+    # 영상을 첫 화면 상단에 크게 두고, 검토에 바로 필요한 정보만 오른쪽에 둔다.
+    video_column, side_column = st.columns([7.4, 4.6], gap="medium")
+    with side_column:
+        render_job_summary(result)
+        candidate = select_candidate(result)
+        if candidate:
+            render_ai_analysis(candidate)
+            render_review_form(candidate, result)
+        elif result["detection_outcome"] == "no_candidates":
             st.success("분석된 범위에서 사고 의심 후보가 없습니다.")
         else:
             st.info("현재 표시할 사고 의심 후보가 없습니다.")
+    with video_column:
+        render_video_console(candidate, result)
+
+    # 보고서, 문서 근거, 처리 상세는 영상 아래 탭으로 내린다.
+    st.markdown('<div style="height:.6rem"></div>', unsafe_allow_html=True)
+    pipeline_label = "처리 현황" + (f" · 오류 {len(result['errors'])}" if result["errors"] else "")
+    if candidate:
+        report_tab, retrieval_tab, pipeline_tab = st.tabs(["AI 사고 분석 보고서", "유사 사례 및 문서 근거", pipeline_label])
+        with report_tab:
+            render_report(candidate)
+        with retrieval_tab:
+            render_retrieval(candidate)
     else:
-        candidate_labels = {
-            item["event_id"]: f"{item['start_seconds']:.1f}–{item['end_seconds']:.1f}초 · 점수 {item['score']:.2f}"
-            for item in result["candidates"]
-        }
-        selected_event_id = st.selectbox(
-            "검토할 사고 의심 후보",
-            options=list(candidate_labels),
-            format_func=lambda value: candidate_labels.get(value, value),
-        )
-        candidate = next(item for item in result["candidates"] if item["event_id"] == selected_event_id)
-        analysis_column, report_column = st.columns([7, 5], gap="large")
-        with analysis_column:
-            render_video_console(candidate, result)
-            st.markdown('<div style="height:.65rem"></div>', unsafe_allow_html=True)
-            render_ai_analysis(candidate)
-        with report_column:
-            render_report_and_review(candidate, result)
-
-    with st.expander("파이프라인 처리 상세", expanded=not bool(result["candidates"])):
-        left, right = st.columns([1.2, 0.8], gap="large")
-        with left:
-            render_coverage(result)
-        with right:
-            render_stages(result)
-
-    if result["errors"]:
-        with st.expander("오류 상세"):
-            for error in result["errors"]:
-                retry = "재시도 가능" if error["retryable"] else "재시도 불가"
-                st.error(f"{error['stage']} · {error['message']} · {retry}")
+        (pipeline_tab,) = st.tabs([pipeline_label])
+    with pipeline_tab:
+        render_pipeline(result)
 
 
 def main() -> None:
@@ -682,11 +704,10 @@ def main() -> None:
     <div class="brand-title">AegisTraffic AI</div><div class="brand-sub">교통사고 영상 분석 및 검토 플랫폼</div></div></div>
     <div class="system-state">● UI READY &nbsp;·&nbsp; API DEMO &nbsp;·&nbsp; GPU OFFLINE</div>
     <div class="demo-state">DEMO MODE</div></div>""", unsafe_allow_html=True)
-    st.markdown("""<div class="workspace-title"><h1>업로드 영상 사고 의심 분석</h1>
-    <p>영상을 시간순으로 분석하고 후보 장면, AI 설명, 문서 근거와 사람의 최종 판단을 함께 관리합니다.</p></div>""", unsafe_allow_html=True)
-
     page = st.session_state.current_page
     if page == "intake":
+        st.markdown("""<div class="workspace-title"><h1>업로드 영상 사고 의심 분석</h1>
+        <p>영상을 시간순으로 분석하고 후보 장면, AI 설명, 문서 근거와 사람의 최종 판단을 함께 관리합니다.</p></div>""", unsafe_allow_html=True)
         render_upload()
     else:
         toolbar_left, toolbar_right = st.columns([0.72, 0.28], vertical_alignment="center")
@@ -704,6 +725,7 @@ def main() -> None:
                     f"선택 영상 {st.session_state.selected_upload_index + 1}/{len(st.session_state.uploaded_videos)}"
                     f" · {active_video['name']}"
                 )
+        render_result(selected_result)
         with st.expander("데모 화면 상태 변경", expanded=False):
             labels = {
                 case["job_id"]: f"{STATUS_LABELS[case['status']]} · {case['job_id'].removeprefix('demo-job-')}"
@@ -716,7 +738,6 @@ def main() -> None:
                 key="selected_job_id",
                 help="백엔드 연결 전 상태별 화면 검증에만 사용합니다.",
             )
-        render_result(selected_result)
 
 
 if __name__ == "__main__":
