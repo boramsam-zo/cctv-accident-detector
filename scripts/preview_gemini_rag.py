@@ -10,6 +10,8 @@ from urllib.error import URLError
 from urllib.parse import urlparse
 from urllib.request import urlopen
 
+from google.genai.errors import APIError, ServerError
+
 from services.backend.gemini_vlm import GeminiVLM
 
 
@@ -51,8 +53,13 @@ def main() -> None:
              "candidate_time_s": float(candidate) if candidate else None,
              "start_seconds": None, "end_seconds": None,
              "object_observations": []}
-    result = GeminiVLM(key, os.getenv("GEMINI_MODEL", "gemini-3.6-flash")).analyze(
-        event, [("sample-clip", "video/mp4", clip), ("sample-frame", "image/png", image)])
+    try:
+        result = GeminiVLM(key, os.getenv("GEMINI_MODEL", "gemini-3.6-flash")).analyze(
+            event, [("sample-clip", "video/mp4", clip), ("sample-frame", "image/png", image)])
+    except ServerError:
+        raise SystemExit("Gemini 서비스가 일시적으로 응답하지 않습니다. 잠시 후 같은 명령을 다시 실행하세요") from None
+    except APIError:
+        raise SystemExit("Gemini 요청이 거절됐습니다. API 키와 모델 설정을 확인하세요") from None
     print(json.dumps(result["rag_input"], ensure_ascii=False, indent=2))
 
 

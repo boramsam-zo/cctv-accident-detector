@@ -29,7 +29,7 @@
 | `scene_conditions.day_time` | `day`, `night`, `twilight` 또는 판단 불가 시 `null` |
 | `scene_conditions.weather` | 화면에서 직접 확인 가능한 기상만 기록. 불명확하면 `null` |
 | `involved_objects[].type/count` | 관련 객체의 관찰 가능한 종류와 수. 확인되지 않으면 빈 배열 |
-| `accident_type` | 충돌 형태가 확인될 때만 문자열, 아니면 `null` |
+| `accident_type` | 추돌·측면충돌·차량 전도 등 형태가 확인될 때만 문자열, 아니면 `null` |
 | `lane_blocked`, `affected_person_visible`, `fire_visible` | 보이면 `true`, 관찰 가능하고 없으면 `false`, 판단 불가 시 `null` |
 | `operator_confirmed` | Gemini 출력이 아님. 사람 검토 전 `null`, 확인된 사고는 `true`, 사고 아님은 `false`; 불확실 검토는 `null` |
 

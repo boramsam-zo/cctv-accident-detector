@@ -25,7 +25,7 @@ class GeminiResult(BaseModel):
     description: str = Field(description="확인된 장면을 한국어로 짧게 설명하고 불확실성을 명시")
     scene_conditions: SceneConditions
     involved_objects: list[InvolvedObject]
-    accident_type: str | None = Field(description="충돌 유형이 영상에서 확인될 때만 기록")
+    accident_type: str | None = Field(description="추돌, 측면충돌, 차량 전도 등 사고 형태가 영상에서 확인될 때만 기록")
     lane_blocked: bool | None = Field(description="차로 점유 여부. 판단 불가 시 null")
     affected_person_visible: bool | None = Field(description="사고 영향을 받은 사람이 보이는지. 판단 불가 시 null")
     fire_visible: bool | None = Field(description="화재가 보이는지. 판단 불가 시 null")
@@ -66,11 +66,12 @@ class GeminiVLM:
         allowed_ids = {asset_id for asset_id, _, _ in media}
         prompt = (
             "녹화 CCTV의 사고 의심 후보 구간과 대표 이미지를 관찰하고 RAG 검색에 쓸 장면 정보를 JSON으로 작성하세요. "
-            "description은 한국어 1~2문장으로 쓰고 관찰과 추정을 구분하세요. 사고 여부, 책임, 과실, 피해를 확정하지 마세요. "
+            "description은 한국어 1~2문장으로 쓰고 관찰과 추정을 구분하세요. 사고 원인을 추측하지 말고 책임, 과실, 피해를 확정하지 마세요. "
             "scene_conditions.day_time은 영상에서 명확할 때 day/night/twilight로, weather는 비·눈 등 기상이 실제 보일 때만 적으세요. "
             "노면이 젖어 보이는 것만으로 비가 온다고 추론하지 마세요. 불확실하면 null입니다. "
-            "involved_objects는 사고에 관여한 것으로 보이는 객체만 종류별로 세고, 화면 밖 객체를 추가하지 마세요. "
-            "accident_type은 접촉 방향이 확인될 때만 적고, 단순 접근·정지만 보이면 null입니다. "
+            "involved_objects는 사고에 관여한 것으로 보이는 객체만 종류별로 세고, type은 한국어로 적으며 화면 밖 객체를 추가하지 마세요. "
+            "accident_type은 추돌·측면충돌뿐 아니라 차량 전도처럼 화면에서 확인되는 형태를 한국어로 적으세요. "
+            "단순 접근·정지만 보이거나 형태가 불명확하면 null입니다. "
             "lane_blocked, affected_person_visible, fire_visible은 관찰 가능할 때 true/false, 판단 불가 시 null입니다. "
             "특히 사람이 단순히 보이는 것과 사고 영향을 받은 사람은 구분하세요. "
             "observations의 evidence_asset_ids에는 제공된 ID만 사용하고, source_times_seconds는 확인 가능한 원본 영상 시각만 사용하세요. "
