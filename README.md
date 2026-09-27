@@ -2,7 +2,20 @@
 
 영상에서 객체와 충돌 의심 구간을 분석하는 프로젝트입니다.
 
-현재는 기본 폴더 구조와 팀 개발용 PRD·공통 계약을 준비했습니다. 서비스 구현과 배포는 다음 단계입니다. 구조와 구현 순서는 [프로젝트 폴더 구조](docs/PROJECT_FOLDER_STRUCTURE.md)를 참고하세요.
+현재는 기본 폴더 구조와 팀 개발용 PRD·공통 계약을 준비했습니다. FastAPI 백엔드의 로컬 개발 구현도 있습니다. GPU 모델 실행과 배포는 다음 단계입니다. 구조와 구현 순서는 [프로젝트 폴더 구조](docs/PROJECT_FOLDER_STRUCTURE.md)를 참고하세요.
+
+## 로컬 개발 환경 (uv)
+
+Python 3.11과 [uv](https://docs.astral.sh/uv/getting-started/installation/)를 설치한 뒤 저장소 루트에서 실행합니다. `uv.lock`을 Git에 함께 올려 모든 팀원이 같은 Python 패키지 버전을 설치합니다.
+
+```bash
+git switch develop
+git pull --ff-only
+uv sync --locked
+uv run --locked pytest -q
+```
+
+`uv sync`가 `.python-version`에 맞는 Python과 `.venv`를 준비합니다. 통합 테스트는 가짜 S3·Pod·Gemini를 사용하므로 클라우드 자격증명 없이 실행됩니다. API를 직접 실행하려면 `ffprobe`와 실제 DB/S3/Gemini 설정이 필요합니다. 설정과 실행 명령은 [백엔드 README](services/backend/README.md)를 참고하세요.
 
 ## 팀원 시작 안내
 

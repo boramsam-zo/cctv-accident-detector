@@ -7,6 +7,10 @@ __pycache__/
 .ruff_cache/
 .coverage
 .coverage.*
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
 htmlcov/
 build/
 dist/
