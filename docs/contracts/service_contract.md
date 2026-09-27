@@ -122,7 +122,7 @@ Pod container disk는 임시 decode/cache에만 사용한다. 원본·채택한 
 | video_id/video_filename | 등록한 source_video_id | 파일 이름으로 권한/동일성 판단 금지 |
 | event_id | run 안에서 유일한 event_id | 여러 실행의 event_000 충돌 방지 |
 | events.start_s/end_s | start_seconds/end_seconds | result.json의 병합 구간 사용 |
-| candidate_time_s | candidate_time_seconds | 첫 양성 창 중간 시각, 정확한 충돌시각 아님 |
+| candidate_time_s | candidate_time_s | Runpod 후보 시각. 첫 양성 창의 중간 시각이며 정확한 충돌시각 아님 |
 | available_after_video_time_s | decision_source_time_seconds | 첫 양성 창 끝, 실제 wall-clock 지연과 다름 |
 | candidate_window_s | trigger_window_seconds | 첫 창 범위; 전체 후보 구간으로 대체하지 않음 |
 | x3d_probability_at_trigger | trigger_score | 보정된 사고 확률로 표시하지 않음 |
@@ -149,6 +149,7 @@ Pod container disk는 임시 decode/cache에만 사용한다. 원본·채택한 
 VLM 입력은 event ID, 실제 장면, 원본 시각, 탐지 메타데이터, 입력 근거 ID다. 출력:
 
 - `status`, `summary`, `observations[{text, evidence_asset_ids, source_times_seconds}]`, `uncertainties`, `provider_model`, `prompt_version`.
+- RAG 입력용 `operator_confirmed`는 Gemini의 독립적인 재확인(`true` 사고 장면 관찰, `false` 정상 장면 확인, `null` 판단 불가)이다. 사람 검토는 별도 `human_review`에 저장한다.
 - 객체·충돌·피해·원인은 확인한 것과 추정을 구분한다. 서버가 JSON 형식과 근거 ID를 검증한다.
 
 RAG 입력은 검증된 관찰 요약·질의·문서 종류/적용 지역 등 확인된 조건이다. 출력:

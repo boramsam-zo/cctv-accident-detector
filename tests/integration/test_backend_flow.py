@@ -46,14 +46,14 @@ class FakeGemini:
     def analyze(self, event, media):
         self.calls += 1
         return {"status": "completed", "summary": "차량의 움직임을 확인했습니다.",
-                "rag_input": {"event_id": event["event_id"], "camera_id": event.get("camera_id"),
-                              "candidate_time_s": event.get("candidate_time_s"),
+                "rag_input": {"event_id": event["event_id"],
+                              "candidate_time_s": event["candidate_time_s"],
                               "description": "차량의 움직임을 확인했습니다.",
                               "scene_conditions": {"day_time": "day", "weather": None},
                               "involved_objects": [{"type": "car", "count": 2}],
                               "accident_type": None, "lane_blocked": None,
                               "affected_person_visible": False, "fire_visible": False,
-                              "operator_confirmed": None},
+                              "operator_confirmed": False},
                 "observations": [{"text": "차량이 보입니다.", "evidence_asset_ids": [media[0][0]],
                                   "source_times_seconds": [event["start_seconds"]]}],
                 "uncertainties": ["접촉 여부는 확인이 필요합니다."],
@@ -111,7 +111,8 @@ def test_pod_partial_event_gemini_review_and_empty_run(tmp_path):
     storage.objects[clip_key], storage.objects[frame_key] = b"clip", b"frame"
     event_id = "event-1"
     manifest = {"schema_version": "service-draft-v0.2", "run_id": run_id, "event_id": event_id,
-                "sequence_number": 1, "start_seconds": 2.0, "end_seconds": 4.0, "score": 0.8,
+                "sequence_number": 1, "start_seconds": 2.0, "end_seconds": 4.0,
+                "candidate_time_s": 3.0, "score": 0.8,
                 "score_type": "max_window_score", "prediction_ids": ["pred-1"],
                 "object_observations": [], "evidence": {
                     "clip_start_seconds": 1.0, "clip_end_seconds": 5.0,
@@ -122,8 +123,15 @@ def test_pod_partial_event_gemini_review_and_empty_run(tmp_path):
     digest = put_json(storage, manifest_key, manifest)
     event_request = {"schema_version": "service-draft-v0.2", "event_id": event_id,
                      "sequence_number": 1, "worker_instance_id": "worker-1",
-                     "start_seconds": 2.0, "end_seconds": 4.0, "manifest_key": manifest_key,
+                     "start_seconds": 2.0, "end_seconds": 4.0, "candidate_time_s": 3.0,
+                     "manifest_key": manifest_key,
                      "manifest_sha256": digest, "detected_at": started}
+    missing_time = {key: value for key, value in event_request.items() if key != "candidate_time_s"}
+    assert client.post(f"/internal/v1/runs/{run_id}/events",
+                       json=missing_time, headers=pod_headers).status_code == 422
+    mismatch = client.post(f"/internal/v1/runs/{run_id}/events",
+                           json={**event_request, "candidate_time_s": 3.5}, headers=pod_headers)
+    assert mismatch.status_code == 409
     event = client.post(f"/internal/v1/runs/{run_id}/events", json=event_request, headers=pod_headers)
     assert event.status_code == 201, event.text
     assert client.post(f"/internal/v1/runs/{run_id}/events", json=event_request, headers=pod_headers).status_code == 201
@@ -145,8 +153,10 @@ def test_pod_partial_event_gemini_review_and_empty_run(tmp_path):
     assert result["status"] == "completed"
     event_result = result["candidates"][0]
     assert event_result["vlm"]["summary"] == "차량의 움직임을 확인했습니다."
-    assert event_result["rag_input"]["operator_confirmed"] is None
+    assert event_result["rag_input"]["operator_confirmed"] is False
     assert event_result["rag_input"]["event_id"] == event_id
+    assert event_result["rag_input"]["candidate_time_s"] == 3.0
+    assert "camera_id" not in event_result["rag_input"]
     assert event_result["retrieval"]["status"] == "insufficient_evidence"
     asset_id = event_result["evidence"]["clip_asset_id"]
     assert client.get(f"/api/v1/assets/{asset_id}/url", headers=headers).json()["content_type"] == "video/mp4"
@@ -155,14 +165,15 @@ def test_pod_partial_event_gemini_review_and_empty_run(tmp_path):
     headers["Idempotency-Key"] = "review-1"
     assert client.post(f"/api/v1/events/{event_id}/reviews", json=review, headers=headers).status_code == 201
     assert client.get(f"/api/v1/jobs/{job_id}", headers=headers).json()["candidates"][0]["human_review"]["status"] == "uncertain"
-    assert client.get(f"/api/v1/jobs/{job_id}", headers=headers).json()["candidates"][0]["rag_input"]["operator_confirmed"] is None
+    assert client.get(f"/api/v1/jobs/{job_id}", headers=headers).json()["candidates"][0]["rag_input"]["operator_confirmed"] is False
     assert client.get(f"/api/v1/events/{event_id}/reviews", headers=headers).json()["items"][0]["decision"] == "uncertain"
     headers["Idempotency-Key"] = "review-2"
     assert client.post(f"/api/v1/events/{event_id}/reviews", json=review, headers=headers).json()["error"]["code"] == "REVIEW_REVISION_CONFLICT"
     headers["Idempotency-Key"] = "review-3"
     confirmed = {**review, "decision": "confirmed_accident", "expected_review_revision": 1}
     assert client.post(f"/api/v1/events/{event_id}/reviews", json=confirmed, headers=headers).status_code == 201
-    assert client.get(f"/api/v1/jobs/{job_id}", headers=headers).json()["candidates"][0]["rag_input"]["operator_confirmed"] is True
+    assert client.get(f"/api/v1/jobs/{job_id}", headers=headers).json()["candidates"][0]["rag_input"]["operator_confirmed"] is False
+    assert client.get(f"/api/v1/jobs/{job_id}", headers=headers).json()["candidates"][0]["human_review"]["status"] == "confirmed_accident"
 
     headers["Idempotency-Key"] = "job-empty"
     second = client.post("/api/v1/jobs", json={"source_video_id": video_id, "analysis_profile_id": "profile-1"}, headers=headers).json()
@@ -186,7 +197,8 @@ def test_gemini_rejects_unknown_evidence_id():
     class FakeModels:
         def generate_content(self, **kwargs):
             class Response:
-                text = json.dumps({"description": "관찰", "scene_conditions": {"day_time": None, "weather": None},
+                text = json.dumps({"description": "관찰", "operator_confirmed": None,
+                    "scene_conditions": {"day_time": None, "weather": None},
                     "involved_objects": [], "accident_type": None, "lane_blocked": None,
                     "affected_person_visible": None, "fire_visible": None,
                     "observations": [
@@ -199,7 +211,8 @@ def test_gemini_rejects_unknown_evidence_id():
 
     vlm = GeminiVLM("", "fake", FakeClient())
     try:
-        vlm.analyze({"event_id": "e1", "start_seconds": 1, "end_seconds": 3},
+        vlm.analyze({"event_id": "e1", "candidate_time_s": 2.0,
+                     "start_seconds": 1, "end_seconds": 3},
                     [("asset-1", "image/jpeg", b"frame")])
     except ValueError as exc:
         assert str(exc) == "invalid_evidence_asset_id"
@@ -213,6 +226,7 @@ def test_gemini_builds_rag_input_without_inventing_metadata():
             assert kwargs["config"]["response_schema"].__name__ == "GeminiResult"
             class Response:
                 text = json.dumps({"description": "차량 두 대가 가까워집니다.",
+                    "operator_confirmed": False,
                     "scene_conditions": {"day_time": "day", "weather": None},
                     "involved_objects": [{"type": "car", "count": 2}],
                     "accident_type": None, "lane_blocked": None,
@@ -225,14 +239,14 @@ def test_gemini_builds_rag_input_without_inventing_metadata():
         models = FakeModels()
 
     vlm = GeminiVLM("", "fake", FakeClient())
-    result = vlm.analyze({"event_id": "event_000", "camera_id": None,
-                          "candidate_time_s": None, "start_seconds": 1.0, "end_seconds": 3.0},
+    result = vlm.analyze({"event_id": "event_000",
+                          "candidate_time_s": 2.0, "start_seconds": 1.0, "end_seconds": 3.0},
                          [("frame-1", "image/png", b"frame")])
     assert result["rag_input"] == {
-        "event_id": "event_000", "camera_id": None, "candidate_time_s": None,
+        "event_id": "event_000", "candidate_time_s": 2.0,
         "description": "차량 두 대가 가까워집니다.",
         "scene_conditions": {"day_time": "day", "weather": None},
         "involved_objects": [{"type": "car", "count": 2}],
         "accident_type": None, "lane_blocked": None,
         "affected_person_visible": False, "fire_visible": False,
-        "operator_confirmed": None}
+        "operator_confirmed": False}

@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import math
 from datetime import timedelta
 
 from sqlalchemy import select
@@ -150,6 +151,11 @@ class PodCoordinator:
                     or not 0 <= start < end <= video.duration_seconds
                     or start != payload["start_seconds"] or end != payload["end_seconds"]):
                 raise ValueError("invalid_event_time")
+            candidate_time = manifest.get("candidate_time_s")
+            if (not isinstance(candidate_time, (int, float)) or isinstance(candidate_time, bool)
+                    or not math.isfinite(candidate_time) or not start <= candidate_time <= end
+                    or candidate_time != payload["candidate_time_s"]):
+                raise ValueError("invalid_candidate_time")
             evidence = manifest.get("evidence") or {}
             clip, frames = evidence.get("clip"), evidence.get("frames") or []
             if not clip and not frames:

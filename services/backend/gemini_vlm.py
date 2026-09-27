@@ -23,6 +23,8 @@ class InvolvedObject(BaseModel):
 
 class GeminiResult(BaseModel):
     description: str = Field(description="확인된 장면을 한국어로 짧게 설명하고 불확실성을 명시")
+    operator_confirmed: bool | None = Field(
+        description="Gemini의 사고 의심 재확인. 사고 장면이 보이면 true, 정상 장면이 명확하면 false, 판단 불가 시 null")
     scene_conditions: SceneConditions
     involved_objects: list[InvolvedObject]
     accident_type: str | None = Field(description="추돌, 측면충돌, 차량 전도 등 사고 형태가 영상에서 확인될 때만 기록")
@@ -35,7 +37,6 @@ class GeminiResult(BaseModel):
 
 class RagInput(BaseModel):
     event_id: str
-    camera_id: str | None
     candidate_time_s: float | None
     description: str
     scene_conditions: SceneConditions
@@ -67,6 +68,9 @@ class GeminiVLM:
         prompt = (
             "녹화 CCTV의 사고 의심 후보 구간과 대표 이미지를 관찰하고 RAG 검색에 쓸 장면 정보를 JSON으로 작성하세요. "
             "description은 한국어 1~2문장으로 쓰고 관찰과 추정을 구분하세요. 사고 원인을 추측하지 말고 책임, 과실, 피해를 확정하지 마세요. "
+            "X3D-S가 후보로 골랐더라도 실제 영상이 정상일 수 있습니다. operator_confirmed는 Gemini의 독립적인 장면 재확인 값입니다. "
+            "충돌·전도 등 사고로 볼 만한 장면이 직접 보이면 true, 사고 없이 정상 주행·정차하는 장면이 명확하면 false, "
+            "클립이 짧거나 가려져 구분할 수 없으면 null을 반환하세요. 후보 점수만으로 true를 선택하지 마세요. "
             "scene_conditions.day_time은 영상에서 명확할 때 day/night/twilight로, weather는 비·눈 등 기상이 실제 보일 때만 적으세요. "
             "노면이 젖어 보이는 것만으로 비가 온다고 추론하지 마세요. 불확실하면 null입니다. "
             "involved_objects는 사고에 관여한 것으로 보이는 객체만 종류별로 세고, type은 한국어로 적으며 화면 밖 객체를 추가하지 마세요. "
@@ -93,7 +97,6 @@ class GeminiVLM:
                 raise ValueError("invalid_evidence_asset_id")
         rag_input = RagInput.model_validate({
             "event_id": event["event_id"],
-            "camera_id": event.get("camera_id"),
             "candidate_time_s": event.get("candidate_time_s"),
             "description": result.description,
             "scene_conditions": result.scene_conditions.model_dump(),
@@ -102,7 +105,7 @@ class GeminiVLM:
             "lane_blocked": result.lane_blocked,
             "affected_person_visible": result.affected_person_visible,
             "fire_visible": result.fire_visible,
-            "operator_confirmed": None,
+            "operator_confirmed": result.operator_confirmed,
         }).model_dump()
         return {
             "status": "completed",

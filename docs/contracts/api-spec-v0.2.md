@@ -339,6 +339,7 @@ coverage는 `scheduled_windows = predicted_windows + unclassified_windows + pend
   "event_id": "evt_01...",
   "start_seconds": 12.0,
   "end_seconds": 16.0,
+  "candidate_time_s": 13.0,
   "label": "suspected_accident",
   "score": 0.8,
   "score_type": "max_window_score",
@@ -611,6 +612,7 @@ worker status는 `starting | ready | degraded | unhealthy | stopping`이다. hea
   "worker_instance_id": "worker_01...",
   "start_seconds": 120.0,
   "end_seconds": 124.0,
+  "candidate_time_s": 122.0,
   "manifest_key": "jobs/job_01/runs/run_01/attempt-1/events/evt_01/manifest.json",
   "manifest_sha256": "<64 lowercase hex>",
   "detected_at": "2026-09-27T06:02:04Z"
@@ -618,6 +620,8 @@ worker status는 `starting | ready | degraded | unhealthy | stopping`이다. hea
 ```
 
 동일 `(run_id, sequence_number)` 또는 `(run_id, event_id)`의 재전송은 최초 등록 결과를 반환한다. BE는 manifest와 S3 객체를 검증하기 전 이벤트를 검토 가능 상태로 확정하지 않는다. FE는 기존 `GET /jobs/{job_id}`를 조회해 running 상태에서도 등록된 후보를 표시한다.
+
+`candidate_time_s`는 Runpod이 계산한 원본 영상 기준 후보 시각이다. 부분 event manifest에도 같은 필드를 필수로 넣어야 하며, BE는 요청 본문과 manifest의 값 및 `start_seconds ≤ candidate_time_s ≤ end_seconds`를 검증한다. 백엔드나 VLM이 이벤트 중간값을 후보 시각으로 만들어 넣지 않는다.
 
 ### 10.5 최종 결과 등록
 
