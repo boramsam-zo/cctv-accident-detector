@@ -50,6 +50,21 @@ Pod worker는 `POST /internal/v1/workers/register`로 인스턴스를 등록하�
 
 manifest와 미디어는 할당된 attempt의 `output_prefix` 아래에 저장해야 합니다. DB에는 실제 객체 SHA256을 검증한 뒤 등록합니다. 프레임에는 `source_time_seconds`가 필요합니다. BE는 임의 HTTPS URL을 읽지 않습니다. Gemini에 보내는 전체 미디어 용량은 기본 18 MiB입니다.
 
+## S3 예시 clip·frame으로 Gemini JSON 확인
+
+로컬 전용 스크립트는 짧게 유효한 S3 presigned URL 두 개를 메모리에서 다운로드하고 Gemini에 전송합니다. URL·미디어는 저장하거나 출력하지 않습니다. `GEMINI_API_KEY`와 URL을 셸 환경 변수로 설정한 뒤 실행합니다.
+
+```bash
+export GEMINI_API_KEY='...'
+export CLIP_PRESIGNED_URL='https://.../clip.mp4?...'
+export IMAGE_PRESIGNED_URL='https://.../frame.png?...'
+export EVENT_ID='event_000'
+# 실제 메타데이터가 있을 때만 CAMERA_ID, CANDIDATE_TIME_S 설정
+uv run --locked python -m scripts.preview_gemini_rag
+```
+
+출력은 [VLM → RAG 입력 계약](../../docs/contracts/vlm-rag-input-v1.md)의 JSON이다. 현재 URL이 만료되면 새 URL이 필요합니다. 클립과 이미지의 합계가 18 MiB를 넘으면 실행을 중단합니다. 이 스크립트는 백엔드의 검증된 S3 asset 경로를 우회해 로컬 예시를 확인하는 용도입니다.
+
 ## 현재 제한
 
 - Runpod Pod의 GPU worker, 실제 가중치·분석 프로필 레지스트리는 아직 없습니다. 프로필은 `ANALYSIS_PROFILE_ID` 하나만 허용합니다.

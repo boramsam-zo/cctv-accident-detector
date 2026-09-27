@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from sqlalchemy import select
 
-from .models import Asset, Event, Report, Run, now
+from .models import Asset, Event, Job, Report, Run, Video, now
 
 log = logging.getLogger(__name__)
 TERMINAL = {"completed", "partial", "failed"}
@@ -29,6 +29,11 @@ class EnrichmentWorker:
             ids = [evidence["clip_asset_id"]] if evidence.get("clip_asset_id") else []
             ids += [frame["asset_id"] for frame in evidence["frames"]]
             assets = [db.get(Asset, asset_id) for asset_id in ids]
+            run = db.get(Run, event.run_id)
+            video = db.get(Video, db.get(Job, run.job_id).video_id)
+            event_data["camera_id"] = video.camera_id
+            event_data["candidate_time_s"] = event_data.get(
+                "candidate_time_s", event_data.get("candidate_time_seconds"))
         try:
             media, total = [], 0
             for asset in assets:
@@ -58,7 +63,11 @@ class EnrichmentWorker:
             if "vlm" in event.data:
                 return True
             event_data = dict(event.data)
-            event_data["vlm"] = vlm
+            vlm_payload = dict(vlm)
+            rag_input = vlm_payload.pop("rag_input", None)
+            event_data["vlm"] = vlm_payload
+            if rag_input:
+                event_data["rag_input"] = rag_input
             event_data["retrieval"] = {"status": "insufficient_evidence", "query": None,
                                         "corpus_version": None, "retrieval_version": None,
                                         "citations": []}

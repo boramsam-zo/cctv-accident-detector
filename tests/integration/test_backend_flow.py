@@ -46,6 +46,14 @@ class FakeGemini:
     def analyze(self, event, media):
         self.calls += 1
         return {"status": "completed", "summary": "차량의 움직임을 확인했습니다.",
+                "rag_input": {"event_id": event["event_id"], "camera_id": event.get("camera_id"),
+                              "candidate_time_s": event.get("candidate_time_s"),
+                              "description": "차량의 움직임을 확인했습니다.",
+                              "scene_conditions": {"day_time": "day", "weather": None},
+                              "involved_objects": [{"type": "car", "count": 2}],
+                              "accident_type": None, "lane_blocked": None,
+                              "affected_person_visible": False, "fire_visible": False,
+                              "operator_confirmed": None},
                 "observations": [{"text": "차량이 보입니다.", "evidence_asset_ids": [media[0][0]],
                                   "source_times_seconds": [event["start_seconds"]]}],
                 "uncertainties": ["접촉 여부는 확인이 필요합니다."],
@@ -137,6 +145,8 @@ def test_pod_partial_event_gemini_review_and_empty_run(tmp_path):
     assert result["status"] == "completed"
     event_result = result["candidates"][0]
     assert event_result["vlm"]["summary"] == "차량의 움직임을 확인했습니다."
+    assert event_result["rag_input"]["operator_confirmed"] is None
+    assert event_result["rag_input"]["event_id"] == event_id
     assert event_result["retrieval"]["status"] == "insufficient_evidence"
     asset_id = event_result["evidence"]["clip_asset_id"]
     assert client.get(f"/api/v1/assets/{asset_id}/url", headers=headers).json()["content_type"] == "video/mp4"
@@ -145,9 +155,14 @@ def test_pod_partial_event_gemini_review_and_empty_run(tmp_path):
     headers["Idempotency-Key"] = "review-1"
     assert client.post(f"/api/v1/events/{event_id}/reviews", json=review, headers=headers).status_code == 201
     assert client.get(f"/api/v1/jobs/{job_id}", headers=headers).json()["candidates"][0]["human_review"]["status"] == "uncertain"
+    assert client.get(f"/api/v1/jobs/{job_id}", headers=headers).json()["candidates"][0]["rag_input"]["operator_confirmed"] is None
     assert client.get(f"/api/v1/events/{event_id}/reviews", headers=headers).json()["items"][0]["decision"] == "uncertain"
     headers["Idempotency-Key"] = "review-2"
     assert client.post(f"/api/v1/events/{event_id}/reviews", json=review, headers=headers).json()["error"]["code"] == "REVIEW_REVISION_CONFLICT"
+    headers["Idempotency-Key"] = "review-3"
+    confirmed = {**review, "decision": "confirmed_accident", "expected_review_revision": 1}
+    assert client.post(f"/api/v1/events/{event_id}/reviews", json=confirmed, headers=headers).status_code == 201
+    assert client.get(f"/api/v1/jobs/{job_id}", headers=headers).json()["candidates"][0]["rag_input"]["operator_confirmed"] is True
 
     headers["Idempotency-Key"] = "job-empty"
     second = client.post("/api/v1/jobs", json={"source_video_id": video_id, "analysis_profile_id": "profile-1"}, headers=headers).json()
@@ -171,7 +186,10 @@ def test_gemini_rejects_unknown_evidence_id():
     class FakeModels:
         def generate_content(self, **kwargs):
             class Response:
-                text = json.dumps({"summary": "관찰", "observations": [
+                text = json.dumps({"description": "관찰", "scene_conditions": {"day_time": None, "weather": None},
+                    "involved_objects": [], "accident_type": None, "lane_blocked": None,
+                    "affected_person_visible": None, "fire_visible": None,
+                    "observations": [
                     {"text": "차량", "evidence_asset_ids": ["unknown"], "source_times_seconds": [2.0]}],
                     "uncertainties": []})
             return Response()
@@ -187,3 +205,34 @@ def test_gemini_rejects_unknown_evidence_id():
         assert str(exc) == "invalid_evidence_asset_id"
     else:
         raise AssertionError("unknown evidence ID was accepted")
+
+
+def test_gemini_builds_rag_input_without_inventing_metadata():
+    class FakeModels:
+        def generate_content(self, **kwargs):
+            assert kwargs["config"]["response_schema"].__name__ == "GeminiResult"
+            class Response:
+                text = json.dumps({"description": "차량 두 대가 가까워집니다.",
+                    "scene_conditions": {"day_time": "day", "weather": None},
+                    "involved_objects": [{"type": "car", "count": 2}],
+                    "accident_type": None, "lane_blocked": None,
+                    "affected_person_visible": False, "fire_visible": False,
+                    "observations": [{"text": "차량 두 대", "evidence_asset_ids": ["frame-1"],
+                                      "source_times_seconds": []}], "uncertainties": ["접촉은 확인되지 않습니다."]})
+            return Response()
+
+    class FakeClient:
+        models = FakeModels()
+
+    vlm = GeminiVLM("", "fake", FakeClient())
+    result = vlm.analyze({"event_id": "event_000", "camera_id": None,
+                          "candidate_time_s": None, "start_seconds": 1.0, "end_seconds": 3.0},
+                         [("frame-1", "image/png", b"frame")])
+    assert result["rag_input"] == {
+        "event_id": "event_000", "camera_id": None, "candidate_time_s": None,
+        "description": "차량 두 대가 가까워집니다.",
+        "scene_conditions": {"day_time": "day", "weather": None},
+        "involved_objects": [{"type": "car", "count": 2}],
+        "accident_type": None, "lane_blocked": None,
+        "affected_person_visible": False, "fire_visible": False,
+        "operator_confirmed": None}

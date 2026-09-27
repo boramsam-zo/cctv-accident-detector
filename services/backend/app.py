@@ -377,6 +377,12 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
             event_data["human_review"] = {"status": req.decision, "review_revision": review.revision,
                                           "review_id": review.id, "report_revision": req.report_revision,
                                           "note": req.note or None}
+            if event_data.get("rag_input"):
+                rag_input = dict(event_data["rag_input"])
+                rag_input["operator_confirmed"] = (
+                    True if req.decision == "confirmed_accident" else
+                    False if req.decision == "not_accident" else None)
+                event_data["rag_input"] = rag_input
             event.data = event_data
             run = db.get(Run, event.run_id)
             if run.result:
