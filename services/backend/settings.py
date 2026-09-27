@@ -26,7 +26,7 @@ class Settings:
             aws_region=os.getenv("AWS_REGION", "ap-northeast-2"),
             pod_worker_token=os.getenv("POD_WORKER_TOKEN", ""),
             gemini_api_key=os.getenv("GEMINI_API_KEY", ""),
-            gemini_model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
+            gemini_model=os.getenv("GEMINI_MODEL", "gemini-3.6-flash"),
             app_api_key=os.getenv("APP_API_KEY", ""),
             analysis_profile_id=os.getenv("ANALYSIS_PROFILE_ID", "received-yolo-x3ds-v1"),
             max_upload_bytes=int(os.getenv("MAX_UPLOAD_BYTES", str(100 * 1024 * 1024))),
