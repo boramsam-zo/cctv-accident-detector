@@ -1,6 +1,6 @@
 # 팀 개발 시작 안내 — 서비스 PRD v0.2
 
-2026-09-26. **현재 설계: Streamlit + FastAPI + S3 + Modal + YOLO11s/X3D-S + VLM/RAG + 사람 검토.** 이전 v0.1의 수동 Colab/React 구성 제안을 대체한다. 구현·배포 완료 문서는 아니다.
+2026-09-27. **현재 설계: Streamlit + FastAPI + S3 + 상시 Runpod GPU Pod + YOLO11s/X3D-S + VLM/RAG + 사람 검토.** 이전 Serverless·Modal 및 수동 Colab/React 구성 제안을 대체한다. 구현·배포 완료 문서는 아니다.
 
 ## 새로 시작하는 팀원이 읽을 순서
 
@@ -25,13 +25,13 @@
 
 ## 이전 그림에서 달라진 점
 
-Modal은 BE에서 spawn한다. S3는 저장소다. X3D-S가 후보 구간을 판별하고 YOLO가 객체 정보를 제공한다. X3D 후보 장면에 YOLO를 적용하는 순서를 제안하며 YOLO 출력이 X3D 입력은 아니다. BE가 완료를 회수해 DB에 등록하고 VLM/RAG를 진행한다. 사람 검토는 UI→API→DB로 저장한다. GPU 로그와 AWS 로그는 job/run으로 대조한다.
+Runpod GPU Pod는 모델을 상시 로드하고 업로드 영상을 원본 시간순으로 처리한다. S3는 영구 저장소다. X3D-S가 후보 구간을 판별하고 YOLO가 객체 정보를 제공한다. worker는 heartbeat와 부분 event/최종 manifest를 BE에 보내고, BE는 검증 후 VLM/RAG를 진행한다. 사람 검토는 UI→API→DB로 저장한다. GPU 로그와 AWS 로그는 job/run/event/worker ID로 대조한다.
 
 ## 전달 모델 확인
 
 지정된 deployment_handoff의 11개 파일이 동봉 manifest의 크기·SHA256과 일치한다. YOLO는 0 Pedestrian, 1 Car, 2 Truck, 3 Bus, 4 Motorcycle, 5 Bicycle, 6 Dynamic의 **7개 클래스**다. 기존 그림의 6개 표기를 수정했다. Dynamic의 의미·성능·실시간 지연은 미확인이다.
 
-받은 코드도 X3D 후보→후보 시각 한 프레임의 YOLO 순서다. 실제 원본 시각 정합, 근거 클립 추출, S3/Modal/API 연결은 추가 개발이 필요하다. [모델 접수 근거](contracts/received-model-metadata-v0.2.json)는 모델 실행 없는 정적 확인 결과다.
+받은 코드도 X3D 후보→후보 시각 한 프레임의 YOLO 순서다. 실제 원본 시각 정합, 근거 클립 추출, S3/Runpod/API 연결은 추가 개발이 필요하다. [모델 접수 근거](contracts/received-model-metadata-v0.2.json)는 모델 실행 없는 정적 확인 결과다.
 
 ## GitHub에서 공유·수정하기
 

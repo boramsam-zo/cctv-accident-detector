@@ -11,14 +11,14 @@
 
 ```text
 Streamlit → EC2 백엔드 → S3 원본 영상 저장
-→ BE 작업 프로세스가 Modal 제출·완료 회수
-→ Modal GPU: X3D-S 후보 구간 → 후보 장면의 YOLO11s 객체 정보
+→ Runpod GPU Pod가 업로드 영상을 원본 시간순으로 처리
+→ Pod worker: X3D-S 후보 구간 → 후보 장면의 YOLO11s 객체 정보
 → S3 분석 영상·대표 프레임·JSON 저장
 → EC2 백엔드에서 외부 VLM API 호출 → RAG 검색
 → DB 작업 상태·리포트 저장 → Streamlit 결과 표시
 ```
 
-초기 구성에서는 SQS와 DLQ를 사용하지 않습니다. Modal `spawn()`과 `call_id`로 비동기 GPU 작업을 관리하고 DB에 작업 상태를 영속 저장합니다.
+초기 구성에서는 SQS와 DLQ를 사용하지 않습니다. Runpod GPU Pod의 상시 worker가 heartbeat를 보내고 업로드 영상 작업을 DB lease로 가져가며, 처리 중 event를 BE에 부분 등록합니다. 작업·이벤트 상태는 DB에 영속 저장합니다.
 
 ## 초기 배포 단위
 
@@ -28,8 +28,11 @@ EC2
 ├── FastAPI 백엔드
 └── BE 작업 프로세스 (제출·회수·VLM/RAG 후속 처리)
 
-Modal
-└── GPU 추론 앱
+Runpod GPU Pod
+├── supervisor / health API
+├── video decoder / chronological frame buffer
+├── X3D-S·YOLO11s inference worker
+└── S3 uploader / event client
 
 AWS
 ├── S3
@@ -37,7 +40,7 @@ AWS
 └── CloudWatch
 ```
 
-처음에는 Streamlit과 백엔드를 같은 EC2 인스턴스에서 실행합니다. Streamlit은 백엔드 API를 통해서만 분석을 요청하며, GPU 추론은 Modal에서 실행합니다. 프로세스 실행 방식과 공개 접속 구성은 배포 단계에서 정합니다.
+처음에는 Streamlit과 백엔드를 같은 EC2 인스턴스에서 실행합니다. Streamlit은 백엔드 API를 통해 업로드와 분석을 요청하며, GPU 추론은 상시 Runpod GPU Pod에서 실행합니다. Pod supervisor·재시작·영상 처리 pacing은 배포 전에 확정합니다.
 
 ## 모델·학습 기본 구조
 
@@ -69,7 +72,7 @@ AWS
 
 | 위치 | 책임 |
 | --- | --- |
-| `src/accident_vision/` | 로컬과 Modal이 함께 사용하는 객체 탐지, 충돌 의심 탐지, 영상 파이프라인 및 추론 계약 |
+| `src/accident_vision/` | 로컬과 Runpod worker가 함께 사용하는 객체 탐지, 충돌 의심 탐지, 영상 파이프라인 및 추론 계약 |
 | `configs/models/` | 모델별 설정 |
 | `models/` | 가중치 버전과 SHA256 검증 정보 |
 | `training/object_detection/` | YOLO11s 학습 및 평가 자료 |
@@ -103,7 +106,7 @@ AWS
 | --- | --- |
 | `apps/streamlit/` | 화면 담당과 API 계약 확정 |
 | `services/backend/` | FastAPI와 DB 선택 확정 |
-| `deploy/modal/` | Modal 계정·가중치·추론 코드 인계 완료 |
+| `deploy/runpod/` | Runpod Pod template·container image·supervisor·가중치·worker 코드 인계 완료 |
 | `deploy/ec2/` | EC2 인스턴스·프로세스 실행·접속 방식 확정 |
 | `rag/` | 문서 출처·임베딩·저장소 확정 |
 
@@ -112,7 +115,7 @@ AWS
 1. 모델 가중치와 설정 인계 및 SHA256 확인
 2. 코드·설정을 로컬에서 준비하고 승인한 GPU 환경에서 공통 추론 확인
 3. 공통 계약 초안 검토·가상 응답으로 FE/BE 착수 (모델 연결과 병행 가능)
-4. Modal에서 같은 추론 코드 실행
+4. Runpod worker에서 같은 추론 코드 실행
 5. S3 입력·결과 저장 연결
 6. EC2 백엔드의 분석 제출·상태 조회 구현
 7. Streamlit과 백엔드 연결
