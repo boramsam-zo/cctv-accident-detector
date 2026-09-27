@@ -1,0 +1,734 @@
+{
+  "schema_version": "service-draft-v0.2",
+  "is_demo": true,
+  "description": "화면 상태 검토용 8개 가상 응답. 실제 가중치·영상·예측·문서가 없으며 null asset을 실제 API 성공 사례로 사용하지 않는다. cases는 API 목록 응답 형식이 아니다.",
+  "cases": [
+    {
+      "schema_version": "service-draft-v0.2",
+      "is_demo": true,
+      "job_id": "demo-job-queued",
+      "run_id": "demo-run-queued",
+      "source_video_id": "demo-source-no-real-video",
+      "status": "queued",
+      "detection_outcome": "pending",
+      "video": {
+        "duration_seconds": 30.0,
+        "camera_id": null,
+        "recorded_at": null,
+        "original_asset_id": null
+      },
+      "coverage": {
+        "requested_start_seconds": 0.0,
+        "requested_end_seconds": 30.0,
+        "scheduled_windows": 29,
+        "predicted_windows": 0,
+        "unclassified_windows": 0,
+        "pending_windows": 29,
+        "unknown_ranges": []
+      },
+      "models": {
+        "objects": {
+          "family": "YOLO11s",
+          "weights_sha256": null,
+          "preprocessing_version": "demo-only",
+          "class_map_version": null
+        },
+        "accident": {
+          "family": "X3D-S",
+          "weights_sha256": null,
+          "preprocessing_version": "demo-only",
+          "class_map_version": "demo-only"
+        },
+        "candidate_policy_version": "demo-only",
+        "decision_rule_version": "demo-only"
+      },
+      "stages": {
+        "objects": {
+          "status": "pending",
+          "reason_code": null
+        },
+        "accident": {
+          "status": "pending",
+          "reason_code": null
+        },
+        "evidence": {
+          "status": "pending",
+          "reason_code": null
+        },
+        "vlm": {
+          "status": "pending",
+          "reason_code": null
+        },
+        "rag": {
+          "status": "pending",
+          "reason_code": null
+        },
+        "report": {
+          "status": "pending",
+          "reason_code": null
+        }
+      },
+      "candidates": [],
+      "errors": []
+    },
+    {
+      "schema_version": "service-draft-v0.2",
+      "is_demo": true,
+      "job_id": "demo-job-running",
+      "run_id": "demo-run-running",
+      "source_video_id": "demo-source-no-real-video",
+      "status": "running",
+      "detection_outcome": "pending",
+      "video": {
+        "duration_seconds": 30.0,
+        "camera_id": null,
+        "recorded_at": null,
+        "original_asset_id": null
+      },
+      "coverage": {
+        "requested_start_seconds": 0.0,
+        "requested_end_seconds": 30.0,
+        "scheduled_windows": 29,
+        "predicted_windows": 10,
+        "unclassified_windows": 0,
+        "pending_windows": 19,
+        "unknown_ranges": []
+      },
+      "models": {
+        "objects": {
+          "family": "YOLO11s",
+          "weights_sha256": null,
+          "preprocessing_version": "demo-only",
+          "class_map_version": null
+        },
+        "accident": {
+          "family": "X3D-S",
+          "weights_sha256": null,
+          "preprocessing_version": "demo-only",
+          "class_map_version": "demo-only"
+        },
+        "candidate_policy_version": "demo-only",
+        "decision_rule_version": "demo-only"
+      },
+      "stages": {
+        "objects": {
+          "status": "pending",
+          "reason_code": null
+        },
+        "accident": {
+          "status": "running",
+          "reason_code": null
+        },
+        "evidence": {
+          "status": "pending",
+          "reason_code": null
+        },
+        "vlm": {
+          "status": "pending",
+          "reason_code": null
+        },
+        "rag": {
+          "status": "pending",
+          "reason_code": null
+        },
+        "report": {
+          "status": "pending",
+          "reason_code": null
+        }
+      },
+      "candidates": [],
+      "errors": []
+    },
+    {
+      "schema_version": "service-draft-v0.2",
+      "is_demo": true,
+      "job_id": "demo-job-empty",
+      "run_id": "demo-run-empty",
+      "source_video_id": "demo-source-no-real-video",
+      "status": "completed",
+      "detection_outcome": "no_candidates",
+      "video": {
+        "duration_seconds": 30.0,
+        "camera_id": null,
+        "recorded_at": null,
+        "original_asset_id": null
+      },
+      "coverage": {
+        "requested_start_seconds": 0.0,
+        "requested_end_seconds": 30.0,
+        "scheduled_windows": 29,
+        "predicted_windows": 29,
+        "unclassified_windows": 0,
+        "pending_windows": 0,
+        "unknown_ranges": []
+      },
+      "models": {
+        "objects": {
+          "family": "YOLO11s",
+          "weights_sha256": null,
+          "preprocessing_version": "demo-only",
+          "class_map_version": null
+        },
+        "accident": {
+          "family": "X3D-S",
+          "weights_sha256": null,
+          "preprocessing_version": "demo-only",
+          "class_map_version": "demo-only"
+        },
+        "candidate_policy_version": "demo-only",
+        "decision_rule_version": "demo-only"
+      },
+      "stages": {
+        "objects": {
+          "status": "skipped",
+          "reason_code": "no_candidates"
+        },
+        "accident": {
+          "status": "completed",
+          "reason_code": null
+        },
+        "evidence": {
+          "status": "completed",
+          "reason_code": null
+        },
+        "vlm": {
+          "status": "skipped",
+          "reason_code": "no_candidates"
+        },
+        "rag": {
+          "status": "skipped",
+          "reason_code": "no_candidates"
+        },
+        "report": {
+          "status": "skipped",
+          "reason_code": "no_candidates"
+        }
+      },
+      "candidates": [],
+      "errors": []
+    },
+    {
+      "schema_version": "service-draft-v0.2",
+      "is_demo": true,
+      "job_id": "demo-job-partial",
+      "run_id": "demo-run-partial",
+      "source_video_id": "demo-source-no-real-video",
+      "status": "partial",
+      "detection_outcome": "unknown",
+      "video": {
+        "duration_seconds": 30.0,
+        "camera_id": null,
+        "recorded_at": null,
+        "original_asset_id": null
+      },
+      "coverage": {
+        "requested_start_seconds": 0.0,
+        "requested_end_seconds": 30.0,
+        "scheduled_windows": 29,
+        "predicted_windows": 25,
+        "unclassified_windows": 4,
+        "pending_windows": 0,
+        "unknown_ranges": [
+          {
+            "start_seconds": 24.0,
+            "end_seconds": 30.0,
+            "reason_code": "demo_frame_quality"
+          }
+        ]
+      },
+      "models": {
+        "objects": {
+          "family": "YOLO11s",
+          "weights_sha256": null,
+          "preprocessing_version": "demo-only",
+          "class_map_version": null
+        },
+        "accident": {
+          "family": "X3D-S",
+          "weights_sha256": null,
+          "preprocessing_version": "demo-only",
+          "class_map_version": "demo-only"
+        },
+        "candidate_policy_version": "demo-only",
+        "decision_rule_version": "demo-only"
+      },
+      "stages": {
+        "objects": {
+          "status": "skipped",
+          "reason_code": "no_usable_candidate"
+        },
+        "accident": {
+          "status": "completed",
+          "reason_code": null
+        },
+        "evidence": {
+          "status": "completed",
+          "reason_code": null
+        },
+        "vlm": {
+          "status": "skipped",
+          "reason_code": "no_usable_candidate"
+        },
+        "rag": {
+          "status": "skipped",
+          "reason_code": "no_usable_candidate"
+        },
+        "report": {
+          "status": "skipped",
+          "reason_code": "no_usable_candidate"
+        }
+      },
+      "candidates": [],
+      "errors": []
+    },
+    {
+      "schema_version": "service-draft-v0.2",
+      "is_demo": true,
+      "job_id": "demo-job-enriching",
+      "run_id": "demo-run-enriching",
+      "source_video_id": "demo-source-no-real-video",
+      "status": "enriching",
+      "detection_outcome": "candidates_found",
+      "video": {
+        "duration_seconds": 30.0,
+        "camera_id": null,
+        "recorded_at": null,
+        "original_asset_id": null
+      },
+      "coverage": {
+        "requested_start_seconds": 0.0,
+        "requested_end_seconds": 30.0,
+        "scheduled_windows": 29,
+        "predicted_windows": 29,
+        "unclassified_windows": 0,
+        "pending_windows": 0,
+        "unknown_ranges": []
+      },
+      "models": {
+        "objects": {
+          "family": "YOLO11s",
+          "weights_sha256": null,
+          "preprocessing_version": "demo-only",
+          "class_map_version": null
+        },
+        "accident": {
+          "family": "X3D-S",
+          "weights_sha256": null,
+          "preprocessing_version": "demo-only",
+          "class_map_version": "demo-only"
+        },
+        "candidate_policy_version": "demo-only",
+        "decision_rule_version": "demo-only"
+      },
+      "stages": {
+        "objects": {
+          "status": "completed",
+          "reason_code": null
+        },
+        "accident": {
+          "status": "completed",
+          "reason_code": null
+        },
+        "evidence": {
+          "status": "completed",
+          "reason_code": null
+        },
+        "vlm": {
+          "status": "running",
+          "reason_code": null
+        },
+        "rag": {
+          "status": "pending",
+          "reason_code": null
+        },
+        "report": {
+          "status": "pending",
+          "reason_code": null
+        }
+      },
+      "candidates": [
+        {
+          "event_id": "demo-event-001",
+          "start_seconds": 12.0,
+          "end_seconds": 16.0,
+          "label": "suspected_accident",
+          "score": 0.8,
+          "score_type": "demo_uncalibrated_max_window_score",
+          "prediction_ids": [
+            "demo-p-001"
+          ],
+          "evidence": {
+            "clip_asset_id": null,
+            "clip_start_seconds": 10.0,
+            "clip_end_seconds": 18.0,
+            "frames": []
+          },
+          "object_observations": [],
+          "vlm": {
+            "status": "running",
+            "summary": null,
+            "observations": [],
+            "uncertainties": [],
+            "provider_model": null,
+            "prompt_version": "demo-only"
+          },
+          "retrieval": {
+            "status": "pending",
+            "query": null,
+            "corpus_version": null,
+            "retrieval_version": "demo-only",
+            "citations": []
+          },
+          "report": {
+            "report_id": null,
+            "revision": null,
+            "status": "pending",
+            "text": null,
+            "source_event_id": "demo-event-001",
+            "evidence_asset_ids": [],
+            "citation_document_ids": [],
+            "limitations": [],
+            "generated_at": null
+          },
+          "human_review": {
+            "status": "unreviewed",
+            "review_id": null,
+            "review_revision": 0,
+            "report_revision": null,
+            "note": null
+          }
+        }
+      ],
+      "errors": []
+    },
+    {
+      "schema_version": "service-draft-v0.2",
+      "is_demo": true,
+      "job_id": "demo-job-no-docs",
+      "run_id": "demo-run-no-docs",
+      "source_video_id": "demo-source-no-real-video",
+      "status": "completed",
+      "detection_outcome": "candidates_found",
+      "video": {
+        "duration_seconds": 30.0,
+        "camera_id": null,
+        "recorded_at": null,
+        "original_asset_id": null
+      },
+      "coverage": {
+        "requested_start_seconds": 0.0,
+        "requested_end_seconds": 30.0,
+        "scheduled_windows": 29,
+        "predicted_windows": 29,
+        "unclassified_windows": 0,
+        "pending_windows": 0,
+        "unknown_ranges": []
+      },
+      "models": {
+        "objects": {
+          "family": "YOLO11s",
+          "weights_sha256": null,
+          "preprocessing_version": "demo-only",
+          "class_map_version": null
+        },
+        "accident": {
+          "family": "X3D-S",
+          "weights_sha256": null,
+          "preprocessing_version": "demo-only",
+          "class_map_version": "demo-only"
+        },
+        "candidate_policy_version": "demo-only",
+        "decision_rule_version": "demo-only"
+      },
+      "stages": {
+        "objects": {
+          "status": "completed",
+          "reason_code": null
+        },
+        "accident": {
+          "status": "completed",
+          "reason_code": null
+        },
+        "evidence": {
+          "status": "completed",
+          "reason_code": null
+        },
+        "vlm": {
+          "status": "completed",
+          "reason_code": null
+        },
+        "rag": {
+          "status": "insufficient_evidence",
+          "reason_code": "no_relevant_document"
+        },
+        "report": {
+          "status": "completed",
+          "reason_code": null
+        }
+      },
+      "candidates": [
+        {
+          "event_id": "demo-event-001",
+          "start_seconds": 12.0,
+          "end_seconds": 16.0,
+          "label": "suspected_accident",
+          "score": 0.8,
+          "score_type": "demo_uncalibrated_max_window_score",
+          "prediction_ids": [
+            "demo-p-001"
+          ],
+          "evidence": {
+            "clip_asset_id": null,
+            "clip_start_seconds": 10.0,
+            "clip_end_seconds": 18.0,
+            "frames": []
+          },
+          "object_observations": [],
+          "vlm": {
+            "status": "completed",
+            "summary": "가상 설명: 해당 구간의 차량 움직임을 확인하세요.",
+            "observations": [],
+            "uncertainties": [
+              "실제 장면을 분석한 문장이 아닙니다."
+            ],
+            "provider_model": "demo-only",
+            "prompt_version": "demo-only"
+          },
+          "retrieval": {
+            "status": "insufficient_evidence",
+            "query": "가상 질의",
+            "corpus_version": "demo-empty",
+            "retrieval_version": "demo-only",
+            "citations": []
+          },
+          "report": {
+            "report_id": "demo-report-001",
+            "revision": 1,
+            "status": "completed",
+            "text": "가상 보고 초안: 검토 후보가 있으며 관련 문서 근거는 부족합니다.",
+            "source_event_id": "demo-event-001",
+            "evidence_asset_ids": [],
+            "citation_document_ids": [],
+            "limitations": [
+              "화면용 가상 데이터; 실제 영상·문서 없음"
+            ],
+            "generated_at": "2026-09-26T00:00:00Z"
+          },
+          "human_review": {
+            "status": "unreviewed",
+            "review_id": null,
+            "review_revision": 0,
+            "report_revision": null,
+            "note": null
+          }
+        }
+      ],
+      "errors": []
+    },
+    {
+      "schema_version": "service-draft-v0.2",
+      "is_demo": true,
+      "job_id": "demo-job-vlm-failed",
+      "run_id": "demo-run-vlm-failed",
+      "source_video_id": "demo-source-no-real-video",
+      "status": "partial",
+      "detection_outcome": "candidates_found",
+      "video": {
+        "duration_seconds": 30.0,
+        "camera_id": null,
+        "recorded_at": null,
+        "original_asset_id": null
+      },
+      "coverage": {
+        "requested_start_seconds": 0.0,
+        "requested_end_seconds": 30.0,
+        "scheduled_windows": 29,
+        "predicted_windows": 29,
+        "unclassified_windows": 0,
+        "pending_windows": 0,
+        "unknown_ranges": []
+      },
+      "models": {
+        "objects": {
+          "family": "YOLO11s",
+          "weights_sha256": null,
+          "preprocessing_version": "demo-only",
+          "class_map_version": null
+        },
+        "accident": {
+          "family": "X3D-S",
+          "weights_sha256": null,
+          "preprocessing_version": "demo-only",
+          "class_map_version": "demo-only"
+        },
+        "candidate_policy_version": "demo-only",
+        "decision_rule_version": "demo-only"
+      },
+      "stages": {
+        "objects": {
+          "status": "completed",
+          "reason_code": null
+        },
+        "accident": {
+          "status": "completed",
+          "reason_code": null
+        },
+        "evidence": {
+          "status": "completed",
+          "reason_code": null
+        },
+        "vlm": {
+          "status": "failed",
+          "reason_code": "demo_timeout"
+        },
+        "rag": {
+          "status": "skipped",
+          "reason_code": "vlm_unavailable"
+        },
+        "report": {
+          "status": "completed",
+          "reason_code": null
+        }
+      },
+      "candidates": [
+        {
+          "event_id": "demo-event-001",
+          "start_seconds": 12.0,
+          "end_seconds": 16.0,
+          "label": "suspected_accident",
+          "score": 0.8,
+          "score_type": "demo_uncalibrated_max_window_score",
+          "prediction_ids": [
+            "demo-p-001"
+          ],
+          "evidence": {
+            "clip_asset_id": null,
+            "clip_start_seconds": 10.0,
+            "clip_end_seconds": 18.0,
+            "frames": []
+          },
+          "object_observations": [],
+          "vlm": {
+            "status": "failed",
+            "summary": null,
+            "observations": [],
+            "uncertainties": [],
+            "provider_model": null,
+            "prompt_version": "demo-only"
+          },
+          "retrieval": {
+            "status": "skipped",
+            "query": null,
+            "corpus_version": null,
+            "retrieval_version": "demo-only",
+            "citations": [],
+            "reason_code": "vlm_unavailable"
+          },
+          "report": {
+            "report_id": "demo-report-001",
+            "revision": 1,
+            "status": "completed",
+            "text": "가상 부분 보고: 장면 설명 실패. 후보와 원본을 먼저 검토하세요.",
+            "source_event_id": "demo-event-001",
+            "evidence_asset_ids": [],
+            "citation_document_ids": [],
+            "limitations": [
+              "화면용 가상 데이터; 실제 영상·문서 없음"
+            ],
+            "generated_at": "2026-09-26T00:00:00Z"
+          },
+          "human_review": {
+            "status": "unreviewed",
+            "review_id": null,
+            "review_revision": 0,
+            "report_revision": null,
+            "note": null
+          }
+        }
+      ],
+      "errors": [
+        {
+          "stage": "vlm",
+          "code": "DEMO_TIMEOUT",
+          "message": "가상 VLM 시간 초과",
+          "retryable": true
+        }
+      ]
+    },
+    {
+      "schema_version": "service-draft-v0.2",
+      "is_demo": true,
+      "job_id": "demo-job-failed",
+      "run_id": "demo-run-failed",
+      "source_video_id": "demo-source-no-real-video",
+      "status": "failed",
+      "detection_outcome": "unknown",
+      "video": {
+        "duration_seconds": 30.0,
+        "camera_id": null,
+        "recorded_at": null,
+        "original_asset_id": null
+      },
+      "coverage": {
+        "requested_start_seconds": 0.0,
+        "requested_end_seconds": 30.0,
+        "scheduled_windows": 29,
+        "predicted_windows": 0,
+        "unclassified_windows": 0,
+        "pending_windows": 29,
+        "unknown_ranges": []
+      },
+      "models": {
+        "objects": {
+          "family": "YOLO11s",
+          "weights_sha256": null,
+          "preprocessing_version": "demo-only",
+          "class_map_version": null
+        },
+        "accident": {
+          "family": "X3D-S",
+          "weights_sha256": null,
+          "preprocessing_version": "demo-only",
+          "class_map_version": "demo-only"
+        },
+        "candidate_policy_version": "demo-only",
+        "decision_rule_version": "demo-only"
+      },
+      "stages": {
+        "objects": {
+          "status": "skipped",
+          "reason_code": "no_usable_candidate"
+        },
+        "accident": {
+          "status": "failed",
+          "reason_code": "demo_model_load_failed"
+        },
+        "evidence": {
+          "status": "skipped",
+          "reason_code": "no_usable_candidate"
+        },
+        "vlm": {
+          "status": "skipped",
+          "reason_code": "no_usable_candidate"
+        },
+        "rag": {
+          "status": "skipped",
+          "reason_code": "no_usable_candidate"
+        },
+        "report": {
+          "status": "skipped",
+          "reason_code": "no_usable_candidate"
+        }
+      },
+      "candidates": [],
+      "errors": [
+        {
+          "stage": "accident",
+          "code": "DEMO_MODEL_LOAD_FAILED",
+          "message": "가상 모델 로드 실패",
+          "retryable": true
+        }
+      ]
+    }
+  ]
+}

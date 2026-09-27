@@ -2,7 +2,16 @@
 
 영상에서 객체와 충돌 의심 구간을 분석하는 프로젝트입니다.
 
-현재는 모델 자산과 공통 추론 패키지를 위한 초기 폴더 구조만 준비했습니다. 서비스 및 배포 폴더는 관련 결정 후 추가합니다. 구조와 구현 순서는 [프로젝트 폴더 구조](docs/PROJECT_FOLDER_STRUCTURE.md)를 참고하세요.
+현재는 기본 폴더 구조와 팀 개발용 PRD·공통 계약을 준비했습니다. 서비스 구현과 배포는 다음 단계입니다. 구조와 구현 순서는 [프로젝트 폴더 구조](docs/PROJECT_FOLDER_STRUCTURE.md)를 참고하세요.
+
+## 팀원 시작 안내
+
+1. [전체 PRD](PROJECT_BRIEF.md): 목표·범위·아키텍처.
+2. [공통 API·데이터 계약](docs/contracts/service_contract.md): 작업 상태·모델 출력·오류·검토 저장.
+3. [담당 역할 문서](docs/roles/README.md): FE·BE·모델·VLM/RAG·인프라·QA.
+4. [구현 계획](IMPLEMENTATION_PLAN.md)과 [현재 상태](docs/current_status.md).
+
+X3D-S가 사고 후보 구간을 찾고 YOLO11s가 해당 장면의 객체 정보를 제공합니다. 수신 YOLO 가중치는 7개 클래스이며 Dynamic의 라벨 정의는 확인 중입니다. [수신 모델 확인](docs/contracts/received-model-metadata-v0.2.json)은 정적 검사 결과이고 실제 추론 성능 검증은 아닙니다.
 
 ## 현재 폴더 안내
 
