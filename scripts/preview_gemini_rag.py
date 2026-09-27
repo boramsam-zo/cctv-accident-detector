@@ -49,7 +49,6 @@ def main() -> None:
         raise SystemExit("image: PNG 파일 내용이 아닙니다")
     candidate = os.getenv("CANDIDATE_TIME_S")
     event = {"event_id": os.getenv("EVENT_ID", "event_000"),
-             "camera_id": os.getenv("CAMERA_ID") or None,
              "candidate_time_s": float(candidate) if candidate else None,
              "start_seconds": None, "end_seconds": None,
              "object_observations": []}

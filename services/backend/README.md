@@ -59,7 +59,7 @@ export GEMINI_API_KEY='...'
 export CLIP_PRESIGNED_URL='https://.../clip.mp4?...'
 export IMAGE_PRESIGNED_URL='https://.../frame.png?...'
 export EVENT_ID='event_000'
-# 실제 메타데이터가 있을 때만 CAMERA_ID, CANDIDATE_TIME_S 설정
+# Runpod 후보 시각이 있으면 CANDIDATE_TIME_S 설정
 uv run --locked python -m scripts.preview_gemini_rag
 ```
 
