@@ -2,7 +2,7 @@
 
 작성일: 2026-09-27
 
-상태: 개발 착수용 초안(구현 전)
+상태: 개발 착수용 계약. FastAPI 로컬 구현 진행 중; Pod GPU worker는 미구현
 기준: [PRD](../../PROJECT_BRIEF.md) · [공통 서비스 계약](service_contract.md) · [가상 응답](demo-analysis-cases-v0.2.json)
 
 이 문서는 Streamlit과 FastAPI 사이의 HTTP 계약을 정의한다. 모델 worker, Runpod GPU Pod, S3 내부 계약은
@@ -42,7 +42,9 @@ job 보존 기간 이상으로 한다.
 | 검토 | GET | `/events/{event_id}/reviews` | 사람 검토 이력 조회 |
 | 실시간 | POST | `/internal/v1/workers/register` | Pod worker 실행 인스턴스 등록 |
 | Pod 내부 | POST | `/internal/v1/workers/{worker_instance_id}/heartbeat` | worker·active run 상태 갱신 |
+| Pod 내부 | POST | `/internal/v1/workers/{worker_instance_id}/claim` | 대기 중인 run을 lease로 할당 |
 | Pod 내부 | POST | `/internal/v1/runs/{run_id}/events` | 처리 중 사고 의심 event·manifest 등록 |
+| Pod 내부 | POST | `/internal/v1/runs/{run_id}/complete` | 최종 manifest·coverage 등록 |
 
 `GET /analysis-profiles`는 FE가 임의의 profile ID를 입력하지 않게 하기 위한 추가 제안이다. 프로필을
 서버 설정으로 하나만 고정한다면 이 API를 제외하고 FE에 고정 ID를 배포할 수 있다.
@@ -573,7 +575,31 @@ Streamlit은 terminal 상태(`completed`, `partial`, `failed`)에서 자동 조�
 
 worker status는 `starting | ready | degraded | unhealthy | stopping`이다. heartbeat 주기와 offline 판정 시간은 운영 측정 후 확정한다.
 
-### 10.3 처리 중 event 등록
+### 10.3 queued run 할당
+
+`POST /internal/v1/workers/{worker_instance_id}/claim`
+
+`ready` 상태이고 작업이 없는 worker가 호출한다. 응답은 `{ "assignment": null }` 또는 다음 형태다.
+
+```json
+{
+  "assignment": {
+    "schema_version": "service-draft-v0.2",
+    "job_id": "job_01",
+    "run_id": "run_01",
+    "source_video_id": "vid_01",
+    "input_object": {"bucket": "project-bucket", "key": "videos/vid_01/original.mp4", "sha256": "<64 lowercase hex>"},
+    "output_prefix": "jobs/job_01/runs/run_01/attempt-1/",
+    "analysis_profile": {"id": "profile_default_v1", "analysis_mode": "file_realtime_1x"},
+    "attempt": 1,
+    "lease_seconds": 60
+  }
+}
+```
+
+할당된 run은 `running`으로 전환된다. worker는 heartbeat로 lease를 갱신한다. 만료된 lease의 재할당·checkpoint 정책은 후속 구현에서 확정한다.
+
+### 10.4 처리 중 event 등록
 
 `POST /internal/v1/runs/{run_id}/events`
 
@@ -585,13 +611,27 @@ worker status는 `starting | ready | degraded | unhealthy | stopping`이다. hea
   "worker_instance_id": "worker_01...",
   "start_seconds": 120.0,
   "end_seconds": 124.0,
-  "manifest_key": "jobs/job_01/runs/run_01/events/evt_01/manifest.json",
+  "manifest_key": "jobs/job_01/runs/run_01/attempt-1/events/evt_01/manifest.json",
   "manifest_sha256": "<64 lowercase hex>",
   "detected_at": "2026-09-27T06:02:04Z"
 }
 ```
 
 동일 `(run_id, sequence_number)` 또는 `(run_id, event_id)`의 재전송은 최초 등록 결과를 반환한다. BE는 manifest와 S3 객체를 검증하기 전 이벤트를 검토 가능 상태로 확정하지 않는다. FE는 기존 `GET /jobs/{job_id}`를 조회해 running 상태에서도 등록된 후보를 표시한다.
+
+### 10.5 최종 결과 등록
+
+`POST /internal/v1/runs/{run_id}/complete`
+
+```json
+{
+  "worker_instance_id": "worker_01",
+  "manifest_key": "jobs/job_01/runs/run_01/attempt-1/final.json",
+  "manifest_sha256": "<64 lowercase hex>"
+}
+```
+
+최종 manifest는 `schema_version`, `run_id`, `coverage`, `models`, `errors`를 포함한다. BE는 S3 객체의 경로와 SHA256, 창 개수 일치를 확인한다. 부분 event가 이미 저장됐다면 해당 후보를 유지하고 VLM 후속 단계 완료 여부에 따라 `enriching`, `completed`, `partial`로 전환한다.
 
 ## 11. 확정이 필요한 항목
 

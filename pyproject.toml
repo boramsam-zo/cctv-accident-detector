@@ -1,0 +1,28 @@
+[project]
+name = "cctv-accident-detector"
+version = "0.1.0"
+description = "CCTV accident analysis backend and shared inference contracts"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "fastapi>=0.115,<1",
+    "uvicorn>=0.30,<1",
+    "python-multipart>=0.0.12,<1",
+    "sqlalchemy>=2.0,<3",
+    "psycopg[binary]>=3.2,<4",
+    "boto3>=1.35,<2",
+    "google-genai>=1.0,<2",
+    "pydantic>=2.6,<3",
+]
+
+[dependency-groups]
+dev = ["pytest>=8,<10", "httpx>=0.27,<1"]
+
+[build-system]
+requires = ["hatchling>=1.26,<2"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/accident_vision", "services"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
