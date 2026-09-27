@@ -9,5 +9,7 @@ class Base(DeclarativeBase):
 def make_session_factory(database_url: str):
     connect_args = {"check_same_thread": False} if database_url.startswith("sqlite:") else {}
     engine = create_engine(database_url, connect_args=connect_args, pool_pre_ping=True)
-    Base.metadata.create_all(engine)
+    # SQLite is used by isolated tests. Shared PostgreSQL schema is managed by Alembic.
+    if database_url.startswith("sqlite:"):
+        Base.metadata.create_all(engine)
     return sessionmaker(engine, expire_on_commit=False)
