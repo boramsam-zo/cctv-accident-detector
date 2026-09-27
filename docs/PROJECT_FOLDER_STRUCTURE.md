@@ -36,17 +36,31 @@ Runpod GPU Pod
 
 AWS
 ├── S3
-├── PostgreSQL 제안 (최종 배포 선택 미정)
+├── PostgreSQL (로컬 연결·마이그레이션 확인, 배포 위치 미정)
 └── CloudWatch
 ```
 
 처음에는 Streamlit과 백엔드를 같은 EC2 인스턴스에서 실행합니다. Streamlit은 백엔드 API를 통해 업로드와 분석을 요청하며, GPU 추론은 상시 Runpod GPU Pod에서 실행합니다. Pod supervisor·재시작·영상 처리 pacing은 배포 전에 확정합니다.
 
-## 모델·학습 기본 구조
+## 현재 구조와 모델·학습 기본 구조
 
 ```text
 .
 ├── README.md
+├── alembic.ini
+├── docker-compose.local.yml
+├── apps/streamlit/
+│   ├── app.py
+│   ├── backend_client.py
+│   └── README.md
+├── services/backend/
+│   ├── app.py
+│   ├── models.py
+│   ├── db.py
+│   └── README.md
+├── migrations/
+│   ├── env.py
+│   └── versions/
 ├── src/accident_vision/
 │   ├── __init__.py
 │   └── README.md
@@ -66,12 +80,16 @@ AWS
     └── README.md
 ```
 
-위 트리는 모델·학습 기본 구조를 설명합니다. 현재 추가된 PRD와 역할·계약·기록 문서는 [문서 목록](README.md)을 참고하세요. 추천 코드와 세부 폴더는 아직 생성하지 않았습니다. 인계할 모델 코드·테스트·노트북은 검토 후 기존 책임에 맞게 연결합니다.
+위 트리는 주요 파일과 모델·학습 기본 구조를 함께 보여줍니다. Streamlit은 FastAPI 공개 API로 영상 접수·작업 조회·근거 재생·검토 저장을 수행합니다. PostgreSQL 스키마는 Alembic 마이그레이션으로 관리합니다. 현재 추가된 PRD와 역할·계약·기록 문서는 [문서 목록](README.md)을 참고하세요. 인계할 모델 코드·테스트·노트북은 검토 후 기존 책임에 맞게 연결합니다.
 
 ## 폴더 책임
 
 | 위치 | 책임 |
 | --- | --- |
+| `apps/streamlit/` | 사용자 화면과 FastAPI 클라이언트. Runpod·S3·DB 직접 접근 없음 |
+| `services/backend/` | 공개 API, Runpod 내부 계약, S3 영상 접근, Gemini 후속 처리 |
+| `migrations/` | PostgreSQL 스키마 버전 관리 |
+| `docker-compose.local.yml` | 로컬 PostgreSQL 실행 |
 | `src/accident_vision/` | 로컬과 Runpod worker가 함께 사용하는 객체 탐지, 충돌 의심 탐지, 영상 파이프라인 및 추론 계약 |
 | `configs/models/` | 모델별 설정 |
 | `models/` | 가중치 버전과 SHA256 검증 정보 |
@@ -104,8 +122,6 @@ AWS
 
 | 폴더 | 생성 조건 |
 | --- | --- |
-| `apps/streamlit/` | 화면 담당과 API 계약 확정 |
-| `services/backend/` | FastAPI와 DB 선택 확정 |
 | `deploy/runpod/` | Runpod Pod template·container image·supervisor·가중치·worker 코드 인계 완료 |
 | `deploy/ec2/` | EC2 인스턴스·프로세스 실행·접속 방식 확정 |
 | `rag/` | 문서 출처·임베딩·저장소 확정 |

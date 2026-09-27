@@ -7,7 +7,7 @@
 | 파일 | 역할 |
 | --- | --- |
 | `app.py` | 공개 API와 Pod 내부 API, 인증·멱등성·오류 응답 |
-| `models.py`, `db.py` | 영상, 작업, Pod worker, 후보, 검토 DB 모델과 개발용 DB 초기화 |
+| `models.py`, `db.py` | 영상, 작업, Pod worker, 후보, 검토 DB 모델과 SQLite 테스트 초기화 |
 | `pod.py` | Pod 등록·lease·manifest·S3 객체 검증 및 후보 등록 |
 | `worker.py`, `run_worker.py` | Gemini 후속 작업과 별도 프로세스 진입점 |
 | `gemini_vlm.py` | Gemini 구조화 응답과 근거 ID 검증 |
@@ -16,10 +16,10 @@
 
 ## 팀 공통 환경 및 테스트
 
-저장소 루트에서 Python 3.11과 uv를 사용합니다. `uv.lock`은 커밋하고 `.venv`는 Git에서 제외합니다.
+저장소 루트에서 Python 3.13과 uv를 사용합니다. `uv.lock`은 커밋하고 `.venv`는 Git에서 제외합니다.
 
 ```bash
-uv sync --locked
+uv sync --locked --group dev
 uv run --locked pytest -q
 ```
 
@@ -42,7 +42,28 @@ uv run --locked uvicorn services.backend.app:create_app --factory --reload
 uv run --locked python -m services.backend.run_worker
 ```
 
-공개 API는 `Authorization: Bearer <APP_API_KEY>`, Pod 내부 API는 별도 `POD_WORKER_TOKEN`을 사용합니다. `X-Actor-Id`는 제한된 팀 데모용 값이며 실제 사용자 인증과 권한 분리는 아직 구현되지 않았습니다. SQLite는 로컬 개발용이고, EC2 공동 운영에는 PostgreSQL `DATABASE_URL`을 설정해야 합니다. `create_all()`은 개발용이므로 운영 배포 전 DB 마이그레이션을 추가해야 합니다.
+공개 API는 `Authorization: Bearer <APP_API_KEY>`, Pod 내부 API는 별도 `POD_WORKER_TOKEN`을 사용합니다. `X-Actor-Id`는 제한된 팀 데모용 값이며 실제 사용자 인증과 권한 분리는 아직 구현되지 않았습니다. SQLite는 테스트용이며 PostgreSQL 스키마는 Alembic으로 적용합니다.
+
+## 로컬 PostgreSQL 및 S3 테스트 서버
+
+Docker와 `ffprobe`를 설치한 뒤 저장소 루트에서 `.env.local.example`을 `.env`로 복사합니다. 로컬 DB는 `127.0.0.1:5433`, 사용자·DB 이름은 `cctv`, 비밀번호는 `cctv_local`입니다. 이 값은 개발용이며 배포 환경에 사용하지 않습니다.
+
+```bash
+docker compose -f docker-compose.local.yml up -d
+cp .env.local.example .env
+set -a; source .env; set +a
+uv run --locked alembic upgrade head
+```
+
+영상 업로드까지 로컬에서 시험할 때 별도 터미널에서 `uv run --locked --group dev moto_server -H 127.0.0.1 -p 5000`을 실행합니다. 다음 명령으로 테스트 버킷을 생성합니다.
+
+```bash
+set -a; source .env; set +a
+uv run --locked python -m scripts.create_local_s3_bucket
+uv run --locked uvicorn services.backend.app:create_app --factory --reload
+```
+
+다른 터미널에서 동일한 `.env`를 읽어 `uv run --locked --group dev streamlit run apps/streamlit/app.py`를 실행합니다. Moto 저장소는 테스트 서버 재시작 시 초기화됩니다. 백엔드와 Streamlit에는 같은 `APP_API_KEY`를 설정합니다. API 서버 시작 전에 마이그레이션을 실행해야 합니다.
 
 ## Pod 작업 흐름
 
@@ -68,5 +89,5 @@ uv run --locked python -m scripts.preview_gemini_rag
 ## 현재 제한
 
 - Runpod Pod의 GPU worker, 실제 가중치·분석 프로필 레지스트리는 아직 없습니다. 프로필은 `ANALYSIS_PROFILE_ID` 하나만 허용합니다.
-- 만료된 lease의 안전한 회수·재시도, 장기 운영용 동시성 제어, 접근 권한 분리, DB 마이그레이션은 후속 작업입니다.
+- 만료된 lease의 안전한 회수·재시도, 장기 운영용 동시성 제어, 접근 권한 분리는 후속 작업입니다.
 - RAG 문서 원문이 없으며 Gemini 입력 영상의 외부 전송·보관 정책은 배포 전 결정해야 합니다.

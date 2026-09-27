@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
+from datetime import datetime, timedelta, timezone
 from html import escape
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
 import streamlit as st
+
+from apps.streamlit.backend_client import BackendClient, BackendError
 
 
 APP_DIR = Path(__file__).resolve().parent
@@ -66,6 +70,8 @@ def initialize_state(cases: list[dict[str, Any]]) -> None:
         "selected_job_id": "demo-job-no-docs",
         "review_by_event": {},
         "request_key": None,
+        "asset_urls": {},
+        "upload_keys": {},
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -196,6 +202,79 @@ def status_message(result: dict[str, Any]) -> tuple[str, str]:
     return "success", "분석이 완료되었습니다. 사고 의심 후보를 검토해 주세요."
 
 
+def video_from_api(item: dict[str, Any], content: bytes | None = None) -> dict[str, Any]:
+    return {
+        "source_video_id": item["source_video_id"],
+        "name": item["file_name"],
+        "size_bytes": item["size_bytes"],
+        "camera_id": item.get("camera_id"),
+        "content": content if content and len(content) <= HOVER_PREVIEW_MAX_BYTES else None,
+        "status": "ready",
+        "job_id": None,
+    }
+
+
+def sync_live_videos(client: BackendClient) -> None:
+    previous = {item["source_video_id"]: item for item in st.session_state.uploaded_videos
+                if item.get("source_video_id")}
+    videos = client.all_videos()
+    jobs = client.all_jobs()
+    latest_job = {}
+    for job in jobs:
+        latest_job.setdefault(job["source_video_id"], job)
+    st.session_state.uploaded_videos = [
+        {**video_from_api(item),
+         "content": previous.get(item["source_video_id"], {}).get("content"),
+         "job_id": latest_job.get(item["source_video_id"], {}).get("job_id"),
+         "status": latest_job.get(item["source_video_id"], {}).get("status", "ready")}
+        for item in videos
+    ]
+    if st.session_state.uploaded_videos:
+        st.session_state.selected_upload_index = min(
+            st.session_state.selected_upload_index, len(st.session_state.uploaded_videos) - 1
+        )
+
+
+def signed_asset_url(asset_id: str | None) -> str | None:
+    if not asset_id:
+        return None
+    cache = st.session_state.asset_urls
+    entry = cache.get(asset_id)
+    if entry and datetime.fromisoformat(entry["expires_at"]) > datetime.now(timezone.utc) + timedelta(seconds=30):
+        return entry["url"]
+    try:
+        entry = st.session_state.backend_client.asset_url(asset_id)
+    except BackendError as exc:
+        st.warning(f"영상 자산을 조회하지 못했습니다: {exc}")
+        return None
+    cache[asset_id] = entry
+    return entry["url"]
+
+
+def live_job_for_selected_video(client: BackendClient) -> dict[str, Any] | None:
+    videos = st.session_state.uploaded_videos
+    if not videos:
+        return None
+    video = videos[st.session_state.selected_upload_index]
+    if not video.get("job_id"):
+        key = st.session_state.setdefault(f"job-key-{video['source_video_id']}", str(uuid4()))
+        job = client.create_job(video["source_video_id"], client.analysis_profile(), key)
+        video["job_id"] = job["job_id"]
+    return client.get_job(video["job_id"])
+
+
+@st.fragment(run_every="5s")
+def render_pending_live_job(job_id: str) -> None:
+    try:
+        result = st.session_state.backend_client.get_job(job_id)
+    except BackendError as exc:
+        st.error(f"분석 상태를 불러오지 못했습니다: {exc}")
+        return
+    if result["status"] in {"completed", "partial", "failed"}:
+        st.rerun(scope="app")
+    render_result(result)
+
+
 def navigate_to(page: str) -> None:
     st.session_state.current_page = page
 
@@ -241,9 +320,14 @@ def render_sidebar(cases: list[dict[str, Any]]) -> dict[str, Any]:
             st.divider()
         st.markdown("##### 연결 상태")
         st.markdown("🟢 Streamlit UI 정상")
-        st.markdown("🟡 FastAPI 데모 데이터")
-        st.markdown("⚪ Runpod GPU 미연결")
-        st.markdown("⚪ S3 미연결")
+        if st.session_state.get("live_mode"):
+            st.markdown("🟢 FastAPI 연결")
+            st.markdown("◯ 영상 저장소는 업로드 시 확인")
+            st.markdown("◯ GPU 작업은 worker 등록 후 처리")
+        else:
+            st.markdown("🟡 FastAPI 데모 데이터")
+            st.markdown("⚪ Runpod GPU 미연결")
+            st.markdown("⚪ S3 미연결")
         st.divider()
         st.caption("AI는 사고 의심 후보와 근거를 제시합니다. 최종 판단은 검토자가 수행합니다.")
     return next(case for case in cases if case["job_id"] == st.session_state.selected_job_id)
@@ -273,10 +357,10 @@ def render_html_frame(html: str, fallback_height: int) -> None:
 def render_video_card(video: dict[str, Any], index: int) -> None:
     safe_name = escape(video["name"])
     size_mb = video["size_bytes"] / (1024 * 1024)
-    status = "분석 대기" if video["status"] == "queued" else "접수 완료"
+    status = STATUS_LABELS.get(video["status"], "접수 완료")
     suffix = Path(video["name"]).suffix.lower()
     mime_type = VIDEO_MIME_TYPES.get(suffix, "video/mp4")
-    if video["size_bytes"] <= HOVER_PREVIEW_MAX_BYTES:
+    if video.get("content") and video["size_bytes"] <= HOVER_PREVIEW_MAX_BYTES:
         encoded_video = base64.b64encode(video["content"]).decode("ascii")
         media_html = f"""
           <video muted loop playsinline preload="metadata"
@@ -395,9 +479,9 @@ def render_upload() -> None:
         with st.form("upload_form", clear_on_submit=False):
             uploaded = st.file_uploader(
                 "분석할 CCTV 영상을 선택하세요 · 최대 5개",
-                type=["mp4", "mov", "avi", "mkv"],
+                type=["mp4"] if st.session_state.get("live_mode") else ["mp4", "mov", "avi", "mkv"],
                 accept_multiple_files=True,
-                help="현재 화면에서는 로컬 미리보기만 제공합니다. API 연결 후 서버로 전송됩니다.",
+                help="MP4 파일은 FastAPI를 통해 영상 저장소에 접수됩니다." if st.session_state.get("live_mode") else "데모 세션에만 저장됩니다.",
             )
             camera_id = st.text_input("카메라 ID (선택)", placeholder="예: parking-lot-01")
             submitted = st.form_submit_button("영상 접수", use_container_width=True)
@@ -407,7 +491,27 @@ def render_upload() -> None:
                 elif len(uploaded) > 5:
                     st.error(f"영상은 한 번에 최대 5개까지 접수할 수 있습니다. 현재 {len(uploaded)}개를 선택했습니다.")
                 else:
-                    st.session_state.uploaded_videos = [
+                    if st.session_state.get("live_mode"):
+                        accepted = []
+                        for video in uploaded:
+                            data = video.getvalue()
+                            signature = (hashlib.sha256(data).hexdigest(), camera_id.strip() or None)
+                            key = st.session_state.upload_keys.setdefault(signature, str(uuid4()))
+                            try:
+                                response = st.session_state.backend_client.upload_video(
+                                    video.name, data, camera_id.strip() or None, key
+                                )
+                                accepted.append(video_from_api(response, data))
+                            except BackendError as exc:
+                                st.error(f"{video.name}: {exc}")
+                        st.session_state.uploaded_videos = accepted + [
+                            item for item in st.session_state.uploaded_videos
+                            if item.get("source_video_id") not in {v["source_video_id"] for v in accepted}
+                        ]
+                        if accepted:
+                            st.success(f"영상 {len(accepted)}개를 접수했습니다.")
+                    else:
+                        st.session_state.uploaded_videos = [
                         {
                             "name": video.name,
                             "content": video.getvalue(),
@@ -417,7 +521,7 @@ def render_upload() -> None:
                             "request_key": str(uuid4()),
                         }
                         for video in uploaded
-                    ]
+                        ]
                     st.session_state.selected_upload_index = 0
                     st.session_state.analysis_requested = False
                     st.session_state.request_key = str(uuid4())
@@ -434,14 +538,15 @@ def render_upload() -> None:
 
 def render_job_summary(result: dict[str, Any]) -> None:
     candidate_count = len(result["candidates"])
-    coverage = result["coverage"]
+    coverage = result.get("coverage") or {}
+    badge = "LIVE" if not result.get("is_demo", True) else "DEMO"
     st.markdown(
         f"""<div class="job-compact"><div><div class="section-kicker">ANALYSIS JOB</div>
         <div class="job-meta">{result['job_id']}</div></div>
-        <div><span class="status-chip">{STATUS_LABELS[result['status']]}</span>
-        <span class="demo-chip">DEMO</span></div></div>
+        <div><span class="status-chip">{STATUS_LABELS.get(result['status'], result['status'])}</span>
+        <span class="demo-chip">{badge}</span></div></div>
         <div class="job-facts">의심 후보 <strong>{candidate_count}건</strong> &nbsp;·&nbsp;
-        처리 <strong>{coverage['predicted_windows']} / {coverage['scheduled_windows']}</strong></div>""",
+        처리 <strong>{coverage.get('predicted_windows', 0)} / {coverage.get('scheduled_windows', 0)}</strong></div>""",
         unsafe_allow_html=True,
     )
     level, message = status_message(result)
@@ -449,12 +554,13 @@ def render_job_summary(result: dict[str, Any]) -> None:
 
 
 def render_metrics(result: dict[str, Any]) -> None:
-    coverage = result["coverage"]
+    coverage = result.get("coverage") or {}
+    duration = (result.get("video") or {}).get("duration_seconds")
     metrics = [
-        ("처리 범위", f"{coverage['predicted_windows']} / {coverage['scheduled_windows']}"),
+        ("처리 범위", f"{coverage.get('predicted_windows', 0)} / {coverage.get('scheduled_windows', 0)}"),
         ("의심 후보", f"{len(result['candidates'])}건"),
-        ("미분류", f"{coverage['unclassified_windows']}구간"),
-        ("영상 길이", f"{result['video']['duration_seconds']:.1f}초"),
+        ("미분류", f"{coverage.get('unclassified_windows', 0)}구간"),
+        ("영상 길이", f"{duration:.1f}초" if duration is not None else "확인 중"),
     ]
     metric_html = "".join(
         f'<div class="metric-card"><div class="metric-label">{label}</div><div class="metric-value">{value}</div></div>'
@@ -467,7 +573,7 @@ def render_metrics(result: dict[str, Any]) -> None:
 def render_stages(result: dict[str, Any]) -> None:
     st.markdown("#### 분석 단계")
     rows = []
-    for stage, detail in result["stages"].items():
+    for stage, detail in (result.get("stages") or {}).items():
         state = detail["status"]
         reason = detail.get("reason_code")
         state_text = state.replace("_", " ")
@@ -481,15 +587,15 @@ def render_stages(result: dict[str, Any]) -> None:
 
 
 def render_coverage(result: dict[str, Any]) -> None:
-    coverage = result["coverage"]
+    coverage = result.get("coverage") or {}
     st.markdown("#### 처리 범위")
-    scheduled = coverage["scheduled_windows"]
-    completed = coverage["predicted_windows"]
+    scheduled = coverage.get("scheduled_windows", 0)
+    completed = coverage.get("predicted_windows", 0)
     if scheduled:
         st.progress(completed / scheduled, text=f"판정 완료 {completed} / 예정 {scheduled} 구간")
-    if coverage["pending_windows"]:
+    if coverage.get("pending_windows"):
         st.caption(f"대기 중: {coverage['pending_windows']}구간")
-    for unknown_range in coverage["unknown_ranges"]:
+    for unknown_range in coverage.get("unknown_ranges", []):
         st.warning(
             f"{unknown_range['start_seconds']:.1f}–{unknown_range['end_seconds']:.1f}초 · "
             f"{unknown_range['reason_code']}"
@@ -497,19 +603,22 @@ def render_coverage(result: dict[str, Any]) -> None:
 
 
 def render_video_console(candidate: dict[str, Any] | None, result: dict[str, Any]) -> None:
-    duration = result["video"]["duration_seconds"]
-    processed = result["coverage"]["predicted_windows"]
-    scheduled = result["coverage"]["scheduled_windows"]
+    duration = (result.get("video") or {}).get("duration_seconds") or 0
+    coverage = result.get("coverage") or {}
+    processed = coverage.get("predicted_windows", 0)
+    scheduled = coverage.get("scheduled_windows", 0)
     fill = processed / scheduled * 100 if scheduled else 0
     uploaded_videos = st.session_state.uploaded_videos
     if uploaded_videos:
         selected_index = min(st.session_state.selected_upload_index, len(uploaded_videos) - 1)
         selected_video = uploaded_videos[selected_index]
         video_name = escape(selected_video["name"])
-        video_content = selected_video["content"]
+        video_content = selected_video.get("content")
     else:
-        video_name = "DEMO VIDEO · 실제 영상 없음"
+        video_name = "영상"
         video_content = None
+    if st.session_state.get("live_mode"):
+        video_content = signed_asset_url((result.get("video") or {}).get("original_asset_id")) or video_content
 
     if candidate:
         start = candidate["start_seconds"]
@@ -545,23 +654,33 @@ def render_video_console(candidate: dict[str, Any] | None, result: dict[str, Any
     if candidate:
         st.markdown(
             f"""<div class="evidence-card"><strong>사고 의심 후보 · {start:.1f}–{end:.1f}초</strong>
-            <span class="score" style="float:right">MODEL SCORE {candidate['score']:.2f}</span><br>
+            <span class="score" style="float:right">MODEL SCORE {candidate.get('score', 0):.2f}</span><br>
             <small>이 값은 후보 선별 점수이며 보정된 사고 확률이나 확정 판정이 아닙니다.</small></div>""",
             unsafe_allow_html=True,
         )
+        evidence = candidate.get("evidence") or {}
+        if st.session_state.get("live_mode"):
+            clip_url = signed_asset_url(evidence.get("clip_asset_id"))
+            if clip_url:
+                st.caption("사고 의심 구간")
+                st.video(clip_url)
+            for frame in evidence.get("frames", []):
+                frame_url = signed_asset_url(frame.get("asset_id"))
+                if frame_url:
+                    st.image(frame_url, caption=f"대표 프레임 · {frame.get('source_time_seconds', '?')}초")
 
 
 def render_ai_analysis(candidate: dict[str, Any]) -> None:
-    vlm = candidate["vlm"]
+    vlm = candidate.get("vlm") or {"status": "pending"}
     st.markdown('<div class="section-kicker">VLM SCENE ANALYSIS</div>', unsafe_allow_html=True)
-    if vlm["status"] == "running":
+    if vlm["status"] in {"pending", "running"}:
         st.info("후보 장면 설명을 생성하고 있습니다.")
     elif vlm["status"] == "failed":
         st.error("장면 설명 생성에 실패했습니다. 영상과 후보 구간은 계속 검토할 수 있습니다.")
     else:
         st.markdown(
             f'<div class="analysis-box"><span class="analysis-label">AI 분석 요약</span>'
-            f'<p>{vlm.get("summary") or "생성된 설명이 없습니다."}</p></div>',
+            f'<p>{escape(str(vlm.get("summary") or "생성된 설명이 없습니다."))}</p></div>',
             unsafe_allow_html=True,
         )
     for uncertainty in vlm.get("uncertainties", []):
@@ -572,8 +691,15 @@ def render_review_form(candidate: dict[str, Any], result: dict[str, Any]) -> Non
     event_id = candidate["event_id"]
     st.markdown('<div class="section-kicker">HUMAN REVIEW</div>', unsafe_allow_html=True)
     saved = st.session_state.review_by_event.get(event_id)
+    if st.session_state.get("live_mode"):
+        try:
+            reviews = st.session_state.backend_client.list_reviews(event_id)["items"]
+            saved = reviews[0] if reviews else None
+        except BackendError as exc:
+            st.warning(f"저장된 검토 결과를 확인하지 못했습니다: {exc}")
     if saved:
-        st.success(f"저장된 판단: {saved['decision_label']}")
+        labels = {"confirmed_accident": "사고로 확인", "not_accident": "사고 아님", "uncertain": "판단 보류"}
+        st.success(f"저장된 판단: {labels.get(saved['decision'], saved['decision'])}")
 
     with st.form(f"review-{event_id}"):
         decision = st.radio(
@@ -594,28 +720,40 @@ def render_review_form(candidate: dict[str, Any], result: dict[str, Any]) -> Non
                 "not_accident": "사고 아님",
                 "uncertain": "판단 보류",
             }
+            if st.session_state.get("live_mode"):
+                payload = {"run_id": result["run_id"],
+                           "report_revision": (candidate.get("report") or {}).get("revision"),
+                           "decision": decision, "note": note.strip(),
+                           "expected_review_revision": saved["review_revision"] if saved else 0}
+                try:
+                    st.session_state.backend_client.create_review(event_id, payload, str(uuid4()))
+                    st.success("검토 결과를 저장했습니다.")
+                    st.rerun()
+                except BackendError as exc:
+                    st.error(f"검토 결과를 저장하지 못했습니다: {exc}")
+                return
             st.session_state.review_by_event[event_id] = {
                 "decision": decision,
                 "decision_label": labels[decision],
                 "note": note.strip(),
                 "run_id": result["run_id"],
-                "report_revision": candidate["report"].get("revision"),
+                "report_revision": (candidate.get("report") or {}).get("revision"),
             }
             st.success("데모 세션에 검토 결과를 저장했습니다.")
 
 
 def render_report(candidate: dict[str, Any]) -> None:
-    report = candidate["report"]
-    if report["status"] == "pending":
+    report = candidate.get("report") or {"status": "pending"}
+    if report["status"] in {"pending", "running"}:
         st.info("보고 초안을 준비하고 있습니다.")
     else:
-        st.markdown(f'<div class="analysis-box"><p>{report.get("text") or "보고 내용이 없습니다."}</p></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="analysis-box"><p>{escape(str(report.get("text") or "보고 내용이 없습니다."))}</p></div>', unsafe_allow_html=True)
         for limitation in report.get("limitations", []):
             st.caption(f"제한사항 · {limitation}")
 
 
 def render_retrieval(candidate: dict[str, Any]) -> None:
-    retrieval = candidate["retrieval"]
+    retrieval = candidate.get("retrieval") or {"status": "pending"}
     if retrieval["status"] == "insufficient_evidence":
         st.markdown(
             '<div class="rag-item"><strong>문서 근거 부족</strong><br><small>관련성이 충분한 자료를 찾지 못했습니다. 검색 장애를 의미하지 않습니다.</small></div>',
@@ -625,6 +763,8 @@ def render_retrieval(candidate: dict[str, Any]) -> None:
         st.info("관련 문서 근거를 검색하고 있습니다.")
     elif retrieval["status"] == "skipped":
         st.caption("이 작업에서는 문서 검색 단계를 수행하지 않았습니다.")
+    elif retrieval["status"] == "failed":
+        st.error("문서 검색에 실패했습니다. 작업 상태와 오류를 확인해 주세요.")
     else:
         citations = retrieval.get("citations", [])
         st.success(f"관련 근거 {len(citations)}건을 찾았습니다.")
@@ -637,7 +777,7 @@ def render_pipeline(result: dict[str, Any]) -> None:
         render_coverage(result)
     with right:
         render_stages(result)
-    for error in result["errors"]:
+    for error in result.get("errors") or []:
         retry = "재시도 가능" if error["retryable"] else "재시도 불가"
         st.error(f"{error['stage']} · {error['message']} · {retry}")
 
@@ -646,7 +786,7 @@ def select_candidate(result: dict[str, Any]) -> dict[str, Any] | None:
     if not result["candidates"]:
         return None
     candidate_labels = {
-        item["event_id"]: f"{item['start_seconds']:.1f}–{item['end_seconds']:.1f}초 · 점수 {item['score']:.2f}"
+        item["event_id"]: f"{item['start_seconds']:.1f}–{item['end_seconds']:.1f}초 · 점수 {item.get('score', 0):.2f}"
         for item in result["candidates"]
     }
     selected_event_id = st.selectbox(
@@ -698,12 +838,24 @@ def main() -> None:
     inject_styles()
     cases = load_demo_cases()
     initialize_state(cases)
+    client = BackendClient.from_env()
+    st.session_state.live_mode = client is not None
+    st.session_state.backend_client = client
+    if client:
+        try:
+            client.health()
+            sync_live_videos(client)
+        except BackendError as exc:
+            st.error(f"FastAPI 연결에 실패했습니다: {exc}")
+            st.stop()
     selected_result = render_sidebar(cases)
 
-    st.markdown("""<div class="topbar"><div class="brand"><div class="brand-mark">AI</div><div>
+    mode_text = "API LIVE" if client else "API DEMO"
+    badge_text = "LIVE MODE" if client else "DEMO MODE"
+    st.markdown(f"""<div class="topbar"><div class="brand"><div class="brand-mark">AI</div><div>
     <div class="brand-title">AegisTraffic AI</div><div class="brand-sub">교통사고 영상 분석 및 검토 플랫폼</div></div></div>
-    <div class="system-state">● UI READY &nbsp;·&nbsp; API DEMO &nbsp;·&nbsp; GPU OFFLINE</div>
-    <div class="demo-state">DEMO MODE</div></div>""", unsafe_allow_html=True)
+    <div class="system-state">● UI READY &nbsp;·&nbsp; {mode_text}</div>
+    <div class="demo-state">{badge_text}</div></div>""", unsafe_allow_html=True)
     page = st.session_state.current_page
     if page == "intake":
         st.markdown("""<div class="workspace-title"><h1>업로드 영상 사고 의심 분석</h1>
@@ -725,8 +877,32 @@ def main() -> None:
                     f"선택 영상 {st.session_state.selected_upload_index + 1}/{len(st.session_state.uploaded_videos)}"
                     f" · {active_video['name']}"
                 )
-        render_result(selected_result)
-        with st.expander("데모 화면 상태 변경", expanded=False):
+        if client:
+            if st.button("영상 URL 새로고침", key="refresh-assets"):
+                st.session_state.asset_urls = {}
+                st.rerun()
+            try:
+                live_result = live_job_for_selected_video(client)
+            except BackendError as exc:
+                st.error(f"분석 작업을 불러오지 못했습니다: {exc}")
+                return
+            if live_result:
+                if live_result["status"] in {"completed", "partial", "failed"}:
+                    render_result(live_result)
+                    if st.button("이 영상 다시 분석", key=f"rerun-{live_result['job_id']}"):
+                        try:
+                            client.rerun_job(live_result["job_id"], client.analysis_profile(), str(uuid4()))
+                            st.rerun()
+                        except BackendError as exc:
+                            st.error(f"재분석을 시작하지 못했습니다: {exc}")
+                else:
+                    render_pending_live_job(live_result["job_id"])
+            else:
+                st.info("먼저 영상을 접수해 주세요.")
+        else:
+            render_result(selected_result)
+        if not client:
+          with st.expander("데모 화면 상태 변경", expanded=False):
             labels = {
                 case["job_id"]: f"{STATUS_LABELS[case['status']]} · {case['job_id'].removeprefix('demo-job-')}"
                 for case in cases

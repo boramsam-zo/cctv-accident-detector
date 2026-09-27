@@ -10,13 +10,13 @@
 | 영역 | 상태 |
 | --- | --- |
 | 설계 문서 | PRD, 공통 API·데이터 계약, 역할 문서 6종, 가상 응답 8종 |
-| 화면 (`apps/streamlit/`) | 가상 응답으로 동작하는 데모. 아직 FastAPI와 연결되지 않음 |
+| 화면 (`apps/streamlit/`) | FastAPI 영상 접수·작업 조회·원본/근거 자산·검토 저장 연결. 환경 변수 없이 가상 응답 데모도 가능 |
 | 백엔드 (`services/backend/`) | 공개 API, Pod 내부 API, S3 manifest 검증, Gemini 설명 저장의 로컬 개발 구현. 테스트는 가짜 S3·Pod·Gemini 사용 |
 | 모델 추론 | **저장소에 없음.** 인계받은 YOLO11s·X3D-S 가중치는 해시와 클래스 수만 정적으로 확인했고, 로드·추론은 검증 전 |
 | Runpod GPU worker | 미구현. 백엔드에 Pod가 호출할 API만 있음 |
 | RAG 문서 저장소 | 미연결. 항상 `insufficient_evidence/corpus_not_configured`로 표시 |
 
-그래서 지금은 **실제 영상에서 사고를 탐지할 수 없습니다.** 실행해 볼 수 있는 것은 [테스트](#1-설치와-테스트), [Streamlit 데모](#2-streamlit-데모-화면), [백엔드 API](#3-백엔드-api-로컬-실행)입니다. 최신 상황은 [현재 상태](docs/current_status.md)와 [구현 계획](IMPLEMENTATION_PLAN.md)을 참고하세요.
+그래서 지금은 **실제 영상에서 사고를 탐지할 수 없습니다.** 화면과 API에서 영상 접수, 작업 생성·조회, 검토 저장은 가능합니다. 최신 상황은 [현재 상태](docs/current_status.md)와 [구현 계획](IMPLEMENTATION_PLAN.md)을 참고하세요.
 
 ## 동작 방식
 
@@ -59,7 +59,7 @@ flowchart LR
 | Pod 연동 | worker 등록·lease, manifest와 S3 객체 SHA256 검증, 후보 등록 | `services/backend/pod.py` |
 | 작업 프로세스 | Gemini 설명 생성과 저장 | `services/backend/worker.py`, `run_worker.py` |
 | 추론 패키지 | 로컬과 Pod가 함께 쓸 YOLO·X3D-S 파이프라인 (예정) | `src/accident_vision/` |
-| 저장소 | S3는 원본·근거 파일, DB는 로컬 SQLite / 공동 운영 PostgreSQL | `storage.py`, `db.py` |
+| 저장소 | S3는 원본·근거 파일, PostgreSQL은 영상 메타데이터·작업·검토, SQLite는 테스트 | `storage.py`, `db.py`, `migrations/` |
 
 자세한 연결 규칙은 [PRD 4장](PROJECT_BRIEF.md#4-서비스-구성), API는 [공통 계약](docs/contracts/service_contract.md)과 [HTTP API 명세](docs/contracts/api-spec-v0.2.md), VLM 출력 형식은 [VLM → RAG 입력 계약](docs/contracts/vlm-rag-input-v1.md)을 참고하세요.
 
@@ -67,41 +67,39 @@ flowchart LR
 
 ### 1. 설치와 테스트
 
-Python 3.11과 [uv](https://docs.astral.sh/uv/getting-started/installation/)를 설치한 뒤 저장소 루트에서 실행합니다. `uv sync`가 `.python-version`에 맞는 Python과 `.venv`를 준비하고, `uv.lock`에 고정된 버전을 설치합니다.
+Python 3.13과 [uv](https://docs.astral.sh/uv/getting-started/installation/)를 설치한 뒤 저장소 루트에서 실행합니다. `uv sync`가 `.python-version`에 맞는 Python과 `.venv`를 준비하고, `uv.lock`에 고정된 버전을 설치합니다.
 
 ```bash
 git switch develop
 git pull --ff-only
-uv sync --locked
-uv run --locked --with "streamlit>=1.37,<2" pytest -q
+uv sync --locked --group dev
+uv run --locked pytest -q
 ```
-
-> Streamlit은 아직 `pyproject.toml` 의존성에 없습니다. `--with` 없이 `uv run --locked pytest -q`를 실행하면 `tests/smoke/test_streamlit_app.py`와 `tests/unit/test_app_logic.py`가 `ModuleNotFoundError: No module named 'streamlit'`로 실패합니다.
 
 테스트는 SQLite와 가짜 S3·Pod·Gemini·ffprobe를 쓰므로 클라우드 계정이나 API 키 없이 실행됩니다.
 
-### 2. Streamlit 데모 화면
+### 2. Streamlit 화면
 
-가상 응답(`docs/contracts/demo-analysis-cases-v0.2.json`)으로 화면 흐름을 확인합니다. 올린 영상은 브라우저 세션 안에서만 미리보기되며 서버·S3·Runpod으로 전송되지 않습니다.
+환경 변수 없이 실행하면 가상 응답(`docs/contracts/demo-analysis-cases-v0.2.json`)으로 화면 흐름을 확인합니다. `BACKEND_API_URL`과 `APP_API_KEY`를 설정하면 FastAPI를 통해 영상을 S3에 접수하고 작업·검토를 PostgreSQL에 저장합니다.
 
 ```bash
-uv run --locked --with "streamlit>=1.37,<2" python -m streamlit run apps/streamlit/app.py
+uv run --locked --group dev streamlit run apps/streamlit/app.py
 ```
 
 브라우저에서 `http://localhost:8501`을 엽니다.
 
 - 로컬 영상을 최대 5개까지 올리면 영상 카드 목록이 나오고, 카드를 누르면 분석 화면으로 이동합니다.
 - 분석 화면에서 가상 응답 8종(대기, 분석 중, 후보 없음, 부분 완료, 설명 생성 중, 문서 근거 부족, VLM 실패, 전체 실패)을 바꿔 볼 수 있습니다.
-- 사람 검토 결과는 현재 세션에만 저장됩니다.
+- API 모드에서는 작업과 검토 결과를 DB에 저장하며, 데모 모드에서는 검토 결과를 현재 세션에만 저장합니다.
 
-화면 범위와 API 연결 예정 지점은 [Streamlit 데모 안내](apps/streamlit/README.md)에 있습니다.
+화면과 API의 로컬 연결 범위는 [Streamlit–FastAPI 연동 안내](docs/STREAMLIT_BACKEND_LOCAL.md)에 있습니다.
 
 ### 3. 백엔드 API 로컬 실행
 
-실제 S3·Gemini를 쓰므로 자격 증명이 필요합니다.
+로컬에서는 PostgreSQL과 S3 테스트 서버로 화면 연결을 확인할 수 있습니다. 실제 S3·Gemini를 쓰는 경우에는 자격 증명이 필요합니다. 전체 순서는 [백엔드 로컬 실행 안내](services/backend/README.md#로컬-postgresql-및-s3-테스트-서버)를 참고하세요.
 
 1. `ffprobe`(FFmpeg)를 설치합니다.
-2. `.env.example`을 `.env`로 복사해 `APP_API_KEY`, `POD_WORKER_TOKEN`, S3 설정, `GEMINI_API_KEY`를 채웁니다. 앱은 `.env`를 자동으로 읽지 않습니다.
+2. `.env.example`을 `.env`로 복사해 `APP_API_KEY`, `POD_WORKER_TOKEN`, PostgreSQL·S3 설정을 채웁니다. Gemini 연동 시험 시 `GEMINI_API_KEY`도 설정합니다. 앱은 `.env`를 자동으로 읽지 않습니다.
 3. 두 터미널에서 각각 환경을 불러와 API와 작업 프로세스를 실행합니다.
 
 ```bash
