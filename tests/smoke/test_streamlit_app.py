@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from unittest.mock import patch
 import unittest
@@ -20,10 +21,18 @@ DEMO_JOB_IDS = (
 )
 
 
+def app_environment(mode: str) -> dict[str, str]:
+    """격리된 앱 설정에 Windows의 사용자 홈 탐색 정보만 보존한다."""
+    environment = {"APP_MODE": mode}
+    if os.name == "nt":
+        environment["USERPROFILE"] = str(Path.home())
+    return environment
+
+
 class StreamlitAppSmokeTest(unittest.TestCase):
     def test_live_mode_requires_backend_configuration(self) -> None:
         """실제 모드는 API 설정이 빠져도 데모 응답으로 전환하지 않는다."""
-        with patch.dict("os.environ", {"APP_MODE": "live"}, clear=True):
+        with patch.dict("os.environ", app_environment("live"), clear=True):
             app = AppTest.from_file(str(APP_PATH)).run(timeout=20)
 
         self.assertEqual([], list(app.exception))
@@ -31,7 +40,7 @@ class StreamlitAppSmokeTest(unittest.TestCase):
 
     def test_all_demo_states_render_without_exception(self) -> None:
         """모든 데모 작업 상태가 Streamlit 화면에서 예외 없이 렌더링되는지 확인한다."""
-        with patch.dict("os.environ", {"APP_MODE": "demo"}, clear=True):
+        with patch.dict("os.environ", app_environment("demo"), clear=True):
             app = AppTest.from_file(str(APP_PATH))
             app.session_state["current_page"] = "analysis"
             app.run(timeout=20)
@@ -45,7 +54,7 @@ class StreamlitAppSmokeTest(unittest.TestCase):
 
     def test_five_uploaded_video_cards_render(self) -> None:
         """업로드된 영상 다섯 개가 각각 카드로 렌더링되는지 확인한다."""
-        with patch.dict("os.environ", {"APP_MODE": "demo"}, clear=True):
+        with patch.dict("os.environ", app_environment("demo"), clear=True):
             app = AppTest.from_file(str(APP_PATH))
             app.session_state["current_page"] = "intake"
             app.session_state["uploaded_videos"] = [
