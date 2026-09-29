@@ -8,7 +8,7 @@
   "candidate_time_s": 12.5,
   "description": "차량 두 대가 가까워집니다. 접촉 여부는 이 장면만으로 확인되지 않습니다.",
   "scene_conditions": {"day_time": "day", "weather": null},
-  "involved_objects": [{"type": "car", "count": 2}],
+  "involved_objects": [{"type": "Car", "count": 2}],
   "accident_type": null,
   "lane_blocked": null,
   "affected_person_visible": false,
@@ -22,12 +22,12 @@
 | 필드 | 생성 주체·규칙 |
 | --- | --- |
 | `event_id` | 백엔드가 등록한 이벤트 ID. Gemini가 생성하지 않음 |
-| `candidate_time_s` | Runpod이 반환한 후보 시각(원본 시작 기준 초). event 등록 시 manifest와 요청 본문의 값이 일치해야 함. 단독 presigned URL 미리보기에서만 미제공 시 `null` |
+| `candidate_time_s` | Modal의 X3D-S 추론이 반환한 후보 시각(원본 시작 기준 초). event manifest의 값을 백엔드가 검증함. 단독 presigned URL 미리보기에서만 미제공 시 `null` |
 | `description` | Gemini가 실제 clip·frame을 근거로 작성한 한국어 요약 |
 | `scene_conditions.day_time` | `day`, `night`, `twilight` 또는 판단 불가 시 `null` |
-| `scene_conditions.weather` | 화면에서 직접 확인 가능한 기상만 기록. 불명확하면 `null` |
-| `involved_objects[].type/count` | 관련 객체의 관찰 가능한 종류와 수. 확인되지 않으면 빈 배열 |
-| `accident_type` | 추돌·측면충돌·차량 전도 등 형태가 확인될 때만 문자열, 아니면 `null` |
+| `scene_conditions.weather` | 영상에서 확인한 장면 상태를 `clear`(맑고 마른 주간), `sunset`(해질녘), `night`(야간), `wet`(비가 보이지 않는 젖은 노면), `rain`(현재 보이는 강수) 중 하나로 기록한다. 겹치면 `rain` → `wet` → `night` → `sunset` → `clear` 순으로 선택하며 판단 불가 시 `null`. 젖은 노면만으로 `rain`을 추정하지 않는다. |
+| `involved_objects[].type/count` | 영상에서 확인된 관련 객체의 종류와 중복 없이 센 수. `type`은 YOLO의 `Pedestrian`, `Car`, `Truck`, `Bus`, `Motorcycle`, `Bicycle`, `Dynamic`만 허용한다. 확인되지 않으면 빈 배열. `Dynamic`은 Modal 객체 탐지에 해당 라벨이 있을 때만 사용한다. |
+| `accident_type` | 영상에서 확인된 사고와 가장 가까운 영어 유형: `rear-end`(후방 추돌), `head-on`(정면 충돌), `sideswipe`(측면 스침), `t-bone`(앞부분과 측면의 충돌), `single`(다른 도로 이용자와 충돌하지 않은 단독 사고). 정상 장면이거나 사고를 확인할 수 없으면 `null`. 유형이 애매하면 근거와 불확실성을 별도 필드에 남긴다. X3D-S의 `Normal`/`Collision`은 후보 탐지용 이진 라벨이며 이 필드의 유형 목록이 아니다. |
 | `lane_blocked`, `affected_person_visible`, `fire_visible` | 보이면 `true`, 관찰 가능하고 없으면 `false`, 판단 불가 시 `null` |
 | `operator_confirmed` | Gemini가 X3D-S 후보를 영상으로 재확인한 값. 사고 장면이 보이면 `true`, 정상 장면이 명확하면 `false`, 판단 불가 시 `null`. 사람 검토와 별개 |
 

@@ -14,43 +14,51 @@ class FakeStorage:
     bucket = "test-bucket"
 
     def __init__(self):
+        """S3 객체를 대신 보관할 메모리 저장소를 초기화한다."""
         self.objects = {}
 
     def put_video(self, key, stream, max_bytes):
+        """업로드된 영상을 보관하고 저장 결과 메타데이터를 반환한다."""
         data = stream.read()
         self.objects[key] = data
         return StoredObject(key, hashlib.sha256(data).hexdigest(), len(data))
 
     def get_bytes(self, key, max_bytes):
+        """용량 제한을 확인한 뒤 저장된 객체 바이트를 반환한다."""
         data = self.objects[key]
         if len(data) > max_bytes:
             raise ValueError("asset_too_large")
         return data
 
     def exists(self, key):
+        """객체 키가 메모리 저장소에 등록됐는지 확인한다."""
         return key in self.objects
 
     def key_from_ref(self, ref):
+        """테스트 버킷의 S3 URI를 객체 키로 바꾼다."""
         if ref.startswith("s3://test-bucket/"):
             return ref.removeprefix("s3://test-bucket/")
         return ref
 
     def url(self, key):
+        """asset URL 응답 검사에 사용할 예시 주소를 반환한다."""
         return f"https://example.invalid/{key}"
 
 
 class FakeGemini:
     def __init__(self):
+        """Gemini 호출 횟수를 기록할 카운터를 초기화한다."""
         self.calls = 0
 
     def analyze(self, event, media):
+        """후처리 흐름에 필요한 고정 VLM 결과와 RAG 입력을 반환한다."""
         self.calls += 1
         return {"status": "completed", "summary": "차량의 움직임을 확인했습니다.",
                 "rag_input": {"event_id": event["event_id"],
                               "candidate_time_s": event["candidate_time_s"],
                               "description": "차량의 움직임을 확인했습니다.",
                               "scene_conditions": {"day_time": "day", "weather": None},
-                              "involved_objects": [{"type": "car", "count": 2}],
+                              "involved_objects": [{"type": "Car", "count": 2}],
                               "accident_type": None, "lane_blocked": None,
                               "affected_person_visible": False, "fire_visible": False,
                               "operator_confirmed": False},
@@ -61,12 +69,14 @@ class FakeGemini:
 
 
 def put_json(storage, key, value):
+    """manifest JSON을 테스트 저장소에 넣고 SHA256을 반환한다."""
     raw = json.dumps(value).encode()
     storage.objects[key] = raw
     return hashlib.sha256(raw).hexdigest()
 
 
 def test_pod_partial_event_gemini_review_and_empty_run(tmp_path):
+    """업로드부터 Pod 이벤트·Gemini·사람 검토·후보 없는 실행까지 확인한다."""
     settings = Settings(
         database_url=f"sqlite:///{tmp_path / 'test.db'}", s3_bucket="test-bucket",
         s3_endpoint_url=None, aws_region="ap-northeast-2", pod_worker_token="pod-token",
@@ -194,8 +204,10 @@ def test_pod_partial_event_gemini_review_and_empty_run(tmp_path):
 
 
 def test_gemini_rejects_unknown_evidence_id():
+    """Gemini가 전달받지 않은 근거 ID를 인용하면 결과를 거부한다."""
     class FakeModels:
         def generate_content(self, **kwargs):
+            """잘못된 근거 ID를 포함한 Gemini 응답을 반환한다."""
             class Response:
                 text = json.dumps({"description": "관찰", "operator_confirmed": None,
                     "scene_conditions": {"day_time": None, "weather": None},
@@ -221,14 +233,16 @@ def test_gemini_rejects_unknown_evidence_id():
 
 
 def test_gemini_builds_rag_input_without_inventing_metadata():
+    """RAG 입력에 Runpod 후보 시각을 보존하고 카메라 ID를 추가하지 않는다."""
     class FakeModels:
         def generate_content(self, **kwargs):
+            """RAG 입력 생성용 구조화 Gemini 응답을 반환한다."""
             assert kwargs["config"]["response_schema"].__name__ == "GeminiResult"
             class Response:
                 text = json.dumps({"description": "차량 두 대가 가까워집니다.",
                     "operator_confirmed": False,
                     "scene_conditions": {"day_time": "day", "weather": None},
-                    "involved_objects": [{"type": "car", "count": 2}],
+                    "involved_objects": [{"type": "Car", "count": 2}],
                     "accident_type": None, "lane_blocked": None,
                     "affected_person_visible": False, "fire_visible": False,
                     "observations": [{"text": "차량 두 대", "evidence_asset_ids": ["frame-1"],
@@ -246,7 +260,7 @@ def test_gemini_builds_rag_input_without_inventing_metadata():
         "event_id": "event_000", "candidate_time_s": 2.0,
         "description": "차량 두 대가 가까워집니다.",
         "scene_conditions": {"day_time": "day", "weather": None},
-        "involved_objects": [{"type": "car", "count": 2}],
+        "involved_objects": [{"type": "Car", "count": 2}],
         "accident_type": None, "lane_blocked": None,
         "affected_person_visible": False, "fire_visible": False,
         "operator_confirmed": False}

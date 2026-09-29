@@ -14,9 +14,11 @@ TERMINAL = {"completed", "partial", "failed"}
 
 class EnrichmentWorker:
     def __init__(self, sessions, storage, gemini, settings):
+        """DB, 근거 저장소, Gemini 클라이언트와 용량 제한을 설정한다."""
         self.sessions, self.storage, self.gemini, self.settings = sessions, storage, gemini, settings
 
     def tick(self) -> bool:
+        """미처리 이벤트 하나를 Gemini로 보강하고 RAG·리포트 상태를 저장한다."""
         with self.sessions() as db:
             events = db.scalars(select(Event).order_by(Event.id)).all()
             event_id = next((event.id for event in events if "vlm" not in event.data), None)
