@@ -15,7 +15,6 @@ COPY pyproject.toml uv.lock ./
 COPY services ./services
 COPY src ./src
 COPY apps ./apps
-COPY docs/contracts/demo-analysis-cases-v0.2.json ./docs/contracts/demo-analysis-cases-v0.2.json
 COPY migrations ./migrations
 COPY alembic.ini ./alembic.ini
 COPY deploy/modal/app.py ./deploy/modal/app.py

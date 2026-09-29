@@ -33,6 +33,8 @@ MODAL_FUNCTION_NAME=analyze_video_job
 
 `S3_KEY_PREFIX`는 Terraform의 `video_key_prefix`와 같아야 합니다. `POSTGRES_PASSWORD`는 이 개발용 Compose에서 DB URL에 직접 들어가므로 URL 예약 문자(`@`, `:`, `/`, `?`, `#`, `%`)를 피하세요. 컨테이너의 `DATABASE_URL`과 Streamlit의 `BACKEND_API_URL`은 Compose가 내부 DNS 이름으로 설정합니다. EC2에서는 인스턴스 역할을 사용하므로 `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`은 설정하지 않습니다. 가중치 버킷·객체 키·해시는 EC2 `.env`가 아니라 Modal `cctv-s3` Secret에 설정합니다.
 
+Compose의 Streamlit은 `APP_MODE=live`로 실행합니다. 이때 실제 FastAPI 연결 설정이 없으면 오류를 표시하고 시작을 중단하며, 데모 JSON을 이미지에 포함하거나 읽지 않습니다. 백엔드와 worker는 기본 구성에서 실제 S3·Modal·Gemini 클라이언트를 사용합니다.
+
 ## 기동과 확인
 
 EC2에 SSM으로 접속한 뒤 이 파일이 들어 있는 브랜치를 체크아웃합니다. EC2의 Docker·Compose 설치는 [Terraform 안내](../terraform/dev-ec2/README.md)를 따릅니다. Docker 그룹을 적용하려면 설치 후 새 SSM 세션으로 접속하세요.

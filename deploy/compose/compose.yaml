@@ -72,6 +72,7 @@ services:
     <<: *app-common
     command: ["streamlit", "run", "apps/streamlit/app.py", "--server.address", "0.0.0.0", "--server.port", "8501", "--server.headless", "true"]
     environment:
+      APP_MODE: live
       BACKEND_API_URL: http://backend:8000
       APP_API_KEY: ${APP_API_KEY:?Set APP_API_KEY in .env}
     depends_on:

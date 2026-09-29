@@ -79,7 +79,7 @@ uv run --locked pytest -q
 
 ### 2. Streamlit 화면
 
-환경 변수 없이 실행하면 가상 응답(`docs/contracts/demo-analysis-cases-v0.2.json`)으로 화면 흐름을 확인합니다. `BACKEND_API_URL`과 `APP_API_KEY`를 설정하면 FastAPI를 통해 영상을 S3에 접수하고 작업·검토를 PostgreSQL에 저장합니다.
+기본 실행은 실제 FastAPI 연결을 요구합니다. `BACKEND_API_URL`과 `APP_API_KEY`를 설정하면 영상을 S3에 접수하고 작업·검토를 PostgreSQL에 저장합니다. 화면 상태만 점검할 때는 `APP_MODE=demo`를 명시하면 가상 응답(`docs/contracts/demo-analysis-cases-v0.2.json`)을 읽습니다.
 
 ```bash
 uv run --locked --group dev streamlit run apps/streamlit/app.py
