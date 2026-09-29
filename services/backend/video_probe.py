@@ -7,6 +7,7 @@ from pathlib import Path
 
 
 def probe_mp4(data: bytes) -> float:
+    """ffprobe로 MP4의 영상 스트림과 재생 시간을 검증한다."""
     with tempfile.TemporaryDirectory(prefix="cctv-probe-") as directory:
         path = Path(directory) / "upload.mp4"
         path.write_bytes(data)

@@ -7,6 +7,7 @@ class Base(DeclarativeBase):
 
 
 def make_session_factory(database_url: str):
+    """DB 세션 팩토리를 만들고 테스트용 SQLite 스키마를 초기화한다."""
     connect_args = {"check_same_thread": False} if database_url.startswith("sqlite:") else {}
     engine = create_engine(database_url, connect_args=connect_args, pool_pre_ping=True)
     # SQLite is used by isolated tests. Shared PostgreSQL schema is managed by Alembic.

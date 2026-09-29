@@ -16,9 +16,14 @@ class Settings:
     max_upload_bytes: int
     max_gemini_clip_bytes: int
     worker_lease_seconds: int
+    modal_app_name: str = "cctv-accident-inference"
+    modal_function_name: str = "analyze_video_job"
+    modal_environment: str = "dev"
+    s3_key_prefix: str = ""
 
     @classmethod
     def from_env(cls) -> "Settings":
+        """환경 변수에서 DB, S3, 인증, Gemini 및 용량 제한 설정을 읽는다."""
         return cls(
             database_url=os.getenv("DATABASE_URL", "sqlite:///./backend.db"),
             s3_bucket=os.getenv("S3_BUCKET", ""),
@@ -32,4 +37,9 @@ class Settings:
             max_upload_bytes=int(os.getenv("MAX_UPLOAD_BYTES", str(100 * 1024 * 1024))),
             max_gemini_clip_bytes=int(os.getenv("MAX_GEMINI_CLIP_BYTES", str(18 * 1024 * 1024))),
             worker_lease_seconds=int(os.getenv("WORKER_LEASE_SECONDS", "60")),
+            modal_app_name=os.getenv("MODAL_APP_NAME", "cctv-accident-inference"),
+            modal_function_name=os.getenv("MODAL_FUNCTION_NAME", "analyze_video_job"),
+            modal_environment=os.getenv("MODAL_ENVIRONMENT", "dev"),
+            s3_key_prefix=(os.getenv("S3_KEY_PREFIX", "").strip("/") + "/"
+                           if os.getenv("S3_KEY_PREFIX", "").strip("/") else ""),
         )

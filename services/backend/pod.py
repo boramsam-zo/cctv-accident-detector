@@ -11,6 +11,7 @@ from .models import Asset, Event, Job, PodWorker, Run, Video, now
 
 
 def initial_result(video: Video) -> dict:
+    """새 분석 실행에 사용할 영상 정보와 초기 단계 상태를 만든다."""
     return {
         "video": {"duration_seconds": video.duration_seconds, "camera_id": video.camera_id,
                   "recorded_at": video.recorded_at.isoformat() if video.recorded_at else None,
@@ -27,9 +28,11 @@ def initial_result(video: Video) -> dict:
 
 class PodCoordinator:
     def __init__(self, sessions, storage, settings):
+        """작업 상태 저장소, S3 접근 객체, worker 설정을 보관한다."""
         self.sessions, self.storage, self.settings = sessions, storage, settings
 
     def register(self, payload: dict) -> dict:
+        """Runpod worker를 등록하고 동일 ID의 등록 정보 충돌을 확인한다."""
         with self.sessions.begin() as db:
             worker = db.get(PodWorker, payload["worker_instance_id"])
             if worker:
@@ -42,6 +45,7 @@ class PodCoordinator:
         return {"worker_instance_id": payload["worker_instance_id"], "status": "registered"}
 
     def heartbeat(self, worker_id: str, payload: dict) -> dict:
+        """worker 상태와 처리 진행 시각을 갱신하고 실행 임대를 연장한다."""
         with self.sessions.begin() as db:
             worker = db.get(PodWorker, worker_id)
             if worker is None:
@@ -69,6 +73,7 @@ class PodCoordinator:
         return {"worker_instance_id": worker_id, "received_at": now().isoformat()}
 
     def claim(self, worker_id: str) -> dict | None:
+        """준비된 worker에 가장 오래 대기한 실행을 할당한다."""
         with self.sessions.begin() as db:
             worker = db.get(PodWorker, worker_id)
             if worker is None or worker.status != "ready":
@@ -99,6 +104,7 @@ class PodCoordinator:
                     "attempt": run.attempt, "lease_seconds": self.settings.worker_lease_seconds}
 
     def _manifest(self, ref: str, digest: str, prefix: str) -> dict:
+        """허용된 S3 경로의 JSON manifest를 읽고 SHA256을 확인한다."""
         key = self.storage.key_from_ref(ref)
         if not key.startswith(prefix) or not key.endswith(".json"):
             raise ValueError("invalid_manifest_key")
@@ -109,6 +115,7 @@ class PodCoordinator:
 
     def _asset(self, db, run: Run, event_id: str, index: int, kind: str,
                item: dict, prefix: str) -> str:
+        """근거 파일의 경로·형식·해시를 확인해 asset 행을 추가한다."""
         key = self.storage.key_from_ref(item.get("key") or item.get("s3_uri", ""))
         mime = item.get("mime_type")
         digest = item.get("sha256", "")
@@ -125,6 +132,7 @@ class PodCoordinator:
         return asset_id
 
     def event(self, run_id: str, payload: dict) -> dict:
+        """사고 후보 manifest와 근거를 검증해 실행 결과에 이벤트를 등록한다."""
         with self.sessions.begin() as db:
             run = db.get(Run, run_id)
             if run is None or run.status != "running" or run.worker_instance_id != payload["worker_instance_id"]:
@@ -185,6 +193,7 @@ class PodCoordinator:
             return {"event_id": payload["event_id"], "status": "registered"}
 
     def complete(self, run_id: str, payload: dict) -> dict:
+        """최종 manifest의 처리 범위를 확인하고 실행 결과를 확정한다."""
         with self.sessions.begin() as db:
             run = db.get(Run, run_id)
             if run is None or run.worker_instance_id != payload["worker_instance_id"]:

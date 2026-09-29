@@ -1,0 +1,2 @@
+# Install after `uv sync --locked` in processes that submit or deploy Modal jobs.
+modal==1.5.5

@@ -16,6 +16,7 @@ from . import models  # Register tables before create_all.
 from .db import make_session_factory
 from .gemini_vlm import GeminiVLM
 from .models import Asset, Event, Idempotency, Job, Review, Run, Video
+from .modal_service import ModalGateway, ModalWorker
 from .pod import PodCoordinator, initial_result
 from .settings import Settings
 from .storage import S3Storage
@@ -75,20 +76,24 @@ class RunCompletion(BaseModel):
 
 
 def _id(prefix: str) -> str:
+    """접두사가 포함된 새 리소스 ID를 생성한다."""
     return f"{prefix}-{uuid4().hex}"
 
 
 def _error(status: int, code: str, message: str, details=None) -> HTTPException:
+    """공개 API의 공통 오류 형식으로 HTTP 예외를 만든다."""
     return HTTPException(status_code=status, detail={"error": {
         "code": code, "message": message, "retryable": status >= 500, "details": details}})
 
 
 def _cursor(row) -> str:
+    """생성 시각과 ID를 목록 페이지네이션 커서로 인코딩한다."""
     raw = json.dumps([row.created_at.isoformat(), row.id]).encode()
     return base64.urlsafe_b64encode(raw).decode().rstrip("=")
 
 
 def _page(query, model, cursor: str | None):
+    """커서 이후의 행을 최신순으로 조회하도록 쿼리를 구성한다."""
     if cursor:
         try:
             stamp, row_id = json.loads(base64.urlsafe_b64decode(cursor + "=" * (-len(cursor) % 4)))
@@ -101,6 +106,7 @@ def _page(query, model, cursor: str | None):
 
 
 def _idempotency(db, actor: str, route: str, key: str, payload: dict, response: dict | None = None):
+    """요청 키의 기존 응답을 찾거나 새 응답을 저장하고 본문 변경을 거부한다."""
     lookup = hashlib.sha256(f"{actor}:{route}:{key}".encode()).hexdigest()
     digest = hashlib.sha256(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()
     found = db.get(Idempotency, lookup)
@@ -114,7 +120,8 @@ def _idempotency(db, actor: str, route: str, key: str, payload: dict, response: 
 
 
 def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
-               gemini=None, video_probe=None) -> FastAPI:
+               gemini=None, video_probe=None, modal_gateway=None) -> FastAPI:
+    """의존성을 구성하고 공개 API 및 GPU 추론 작업 서비스를 등록한다."""
     settings = settings or Settings.from_env()
     if not settings.app_api_key:
         raise RuntimeError("APP_API_KEY must be configured")
@@ -124,10 +131,12 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
     app.state.sessions = sessions
     app.state.storage = storage
     app.state.gemini = gemini
+    app.state.modal_gateway = modal_gateway
     probe = video_probe or probe_mp4
 
     @app.middleware("http")
     async def request_id_middleware(request: Request, call_next):
+        """요청별 추적 ID를 생성하고 응답 헤더에 추가한다."""
         request.state.request_id = _id("req")
         response = await call_next(request)
         response.headers["X-Request-ID"] = request.state.request_id
@@ -135,6 +144,7 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
 
     @app.exception_handler(HTTPException)
     async def http_error(request: Request, exc: HTTPException):
+        """HTTP 예외를 공통 오류 본문과 요청 ID로 변환한다."""
         payload = exc.detail if isinstance(exc.detail, dict) and "error" in exc.detail else {
             "error": {"code": "http_error", "message": str(exc.detail), "retryable": False}}
         return JSONResponse(status_code=exc.status_code,
@@ -142,11 +152,13 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request: Request, exc: RequestValidationError):
+        """요청 스키마 검증 오류를 공통 422 응답으로 변환한다."""
         return JSONResponse(status_code=422, content={"error": {"code": "VALIDATION_FAILED",
                             "message": "Request does not match the API schema", "retryable": False,
                             "details": None}, "request_id": request.state.request_id})
 
     def auth(authorization: str | None = Header(default=None), x_actor_id: str | None = Header(default=None)) -> str:
+        """공개 API의 bearer 토큰을 확인하고 데모용 행위자 ID를 반환한다."""
         token = authorization.removeprefix("Bearer ") if authorization else ""
         if not hmac.compare_digest(token, settings.app_api_key):
             raise _error(401, "AUTHENTICATION_REQUIRED", "Valid bearer token required")
@@ -154,27 +166,41 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
         return x_actor_id or "team-demo"
 
     def pod_auth(authorization: str | None = Header(default=None)) -> None:
+        """Runpod 내부 API의 worker 토큰을 확인한다."""
         token = authorization.removeprefix("Bearer ") if authorization else ""
         if not settings.pod_worker_token or not hmac.compare_digest(token, settings.pod_worker_token):
             raise _error(401, "AUTHENTICATION_REQUIRED", "Valid Pod token required")
 
     def get_storage():
+        """주입된 저장소를 사용하거나 S3 클라이언트를 지연 생성한다."""
         if app.state.storage is None:
             app.state.storage = S3Storage(settings.s3_bucket, endpoint_url=settings.s3_endpoint_url,
                                           region_name=settings.aws_region)
         return app.state.storage
 
     def get_enrichment_worker():
+        """Gemini 클라이언트와 저장소를 연결한 후처리 worker를 만든다."""
         if app.state.gemini is None:
             app.state.gemini = GeminiVLM(settings.gemini_api_key, settings.gemini_model)
         return EnrichmentWorker(sessions, get_storage(), app.state.gemini, settings)
 
     app.state.get_enrichment_worker = get_enrichment_worker
 
+    def get_modal_worker():
+        """Modal 제출·결과 회수 작업자를 현재 저장소에 연결한다."""
+        if app.state.modal_gateway is None:
+            app.state.modal_gateway = ModalGateway(settings)
+        return ModalWorker(sessions, get_storage(), app.state.modal_gateway,
+                           settings.s3_key_prefix)
+
+    app.state.get_modal_worker = get_modal_worker
+
     def coordinator():
+        """Runpod 작업 조정 서비스를 현재 의존성으로 구성한다."""
         return PodCoordinator(sessions, get_storage(), settings)
 
     def video_payload(video: Video, *, include_hash: bool = False) -> dict:
+        """영상 DB 행을 공개 API의 영상 응답 형식으로 변환한다."""
         value = {"source_video_id": video.id, "file_name": video.filename,
                  "content_type": video.content_type, "size_bytes": video.size_bytes,
                  "duration_seconds": video.duration_seconds, "camera_id": video.camera_id,
@@ -184,6 +210,7 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
         return value
 
     def pod_call(callback, *args):
+        """Runpod 계약 충돌을 HTTP 409 응답으로 변환하며 작업을 호출한다."""
         try:
             return callback(*args)
         except ValueError as exc:
@@ -191,6 +218,7 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
 
     @app.get("/health")
     def health():
+        """프로세스의 기본 HTTP 응답 상태를 반환한다."""
         return {"status": "ok"}
 
     @app.post("/api/v1/videos", status_code=201)
@@ -199,6 +227,7 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
         recorded_at: datetime | None = Form(None), idempotency_key: str = Header(..., alias="Idempotency-Key"),
         actor: str = Depends(auth),
     ):
+        """MP4를 검증해 S3에 저장하고 영상 및 원본 asset을 등록한다."""
         if not file.filename or not file.filename.lower().endswith(".mp4"):
             raise _error(415, "VIDEO_FORMAT_UNSUPPORTED", "Only MP4 files are accepted")
         if not 0 < len(idempotency_key) <= 200:
@@ -219,7 +248,7 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
         except (ValueError, OSError) as exc:
             raise _error(422, "VIDEO_INVALID", "Unable to read video metadata") from exc
         video_id = _id("video")
-        key = f"videos/{video_id}/original.mp4"
+        key = f"{settings.s3_key_prefix}videos/{video_id}/original.mp4"
         try:
             obj = get_storage().put_video(key, BytesIO(data), settings.max_upload_bytes)
         except ValueError as exc:
@@ -241,6 +270,7 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
 
     @app.get("/api/v1/videos")
     def list_videos(cursor: str | None = None, limit: int = Query(20, ge=1, le=100), actor: str = Depends(auth)):
+        """등록된 영상을 커서 기반으로 조회한다."""
         with sessions() as db:
             rows = list(db.scalars(_page(select(Video), Video, cursor).limit(limit + 1)))
             return {"items": [video_payload(v) for v in rows[:limit]],
@@ -248,6 +278,7 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
 
     @app.get("/api/v1/analysis-profiles")
     def analysis_profiles(actor: str = Depends(auth)):
+        """현재 사용 가능한 분석 프로필을 반환한다."""
         return {"items": [{"analysis_profile_id": settings.analysis_profile_id,
                            "display_name": "기본 사고 의심 분석",
                            "description": "X3D-S 후보 탐색과 YOLO11s 객체 정보를 제공합니다.",
@@ -255,6 +286,7 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
 
     @app.post("/api/v1/jobs", status_code=202)
     def create_job(req: JobRequest, idempotency_key: str = Header(..., alias="Idempotency-Key"), actor: str = Depends(auth)):
+        """등록된 영상의 분석 작업과 첫 실행을 대기 상태로 만든다."""
         with sessions.begin() as db:
             old = _idempotency(db, actor, "POST /jobs", idempotency_key, req.model_dump())
             if old:
@@ -279,6 +311,7 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
     def list_jobs(cursor: str | None = None, limit: int = Query(20, ge=1, le=100),
                   status: str | None = None, source_video_id: str | None = None,
                   actor: str = Depends(auth)):
+        """상태와 영상 ID로 필터링한 분석 작업 목록을 조회한다."""
         with sessions() as db:
             query = select(Job).join(Run, Job.active_run_id == Run.id)
             if status:
@@ -290,13 +323,15 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
             for job in rows[:limit]:
                 run = db.get(Run, job.active_run_id)
                 items.append({"job_id": job.id, "active_run_id": run.id, "source_video_id": job.video_id,
-                              "status": run.status, "detection_outcome": run.outcome,
+                              "status": "queued" if run.status == "dispatching" else run.status,
+                              "detection_outcome": run.outcome,
                               "candidate_count": len((run.result or {}).get("candidates", [])),
                               "created_at": job.created_at, "updated_at": run.updated_at})
             return {"items": items, "next_cursor": _cursor(rows[limit - 1]) if len(rows) > limit else None}
 
     @app.get("/api/v1/jobs/{job_id}")
     def get_job(job_id: str, run_id: str | None = None, actor: str = Depends(auth)):
+        """지정한 실행 또는 현재 실행의 단계·후보·결과를 반환한다."""
         with sessions() as db:
             job = db.get(Job, job_id)
             if not job:
@@ -308,7 +343,8 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
             result = run.result or {}
             return {"schema_version": "service-draft-v0.2", "is_demo": False,
                     "job_id": job.id, "run_id": run.id, "source_video_id": video.id,
-                    "status": run.status, "detection_outcome": run.outcome,
+                    "status": "queued" if run.status == "dispatching" else run.status,
+                    "detection_outcome": run.outcome,
                     "created_at": run.created_at, "updated_at": run.updated_at,
                     "video": result.get("video") or {"duration_seconds": video.duration_seconds, "camera_id": video.camera_id,
                         "recorded_at": video.recorded_at, "original_asset_id": f"source-{video.id}"},
@@ -318,6 +354,7 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
 
     @app.post("/api/v1/jobs/{job_id}/runs", status_code=202)
     def rerun(job_id: str, req: RunRequest, idempotency_key: str = Header(..., alias="Idempotency-Key"), actor: str = Depends(auth)):
+        """종료된 작업에 새 분석 실행을 만들고 활성 실행으로 지정한다."""
         with sessions.begin() as db:
             old = _idempotency(db, actor, f"POST /jobs/{job_id}/runs", idempotency_key, req.model_dump())
             if old:
@@ -342,6 +379,7 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
 
     @app.get("/api/v1/assets/{asset_id}/url")
     def asset_url(asset_id: str, actor: str = Depends(auth)):
+        """원본 영상이나 근거 asset의 짧게 유효한 다운로드 URL을 발급한다."""
         with sessions() as db:
             asset = db.get(Asset, asset_id)
             if not asset:
@@ -352,6 +390,7 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
 
     @app.post("/api/v1/events/{event_id}/reviews", status_code=201)
     def create_review(event_id: str, req: ReviewRequest, idempotency_key: str = Header(..., alias="Idempotency-Key"), actor: str = Depends(auth)):
+        """검토 버전을 확인하고 사람의 사고 판정과 메모를 저장한다."""
         if req.decision not in {"confirmed_accident", "not_accident", "uncertain"}:
             raise _error(422, "VALIDATION_FAILED", "Unknown review decision")
         with sessions.begin() as db:
@@ -395,6 +434,7 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
     @app.get("/api/v1/events/{event_id}/reviews")
     def list_reviews(event_id: str, cursor: str | None = None,
                      limit: int = Query(20, ge=1, le=100), actor: str = Depends(auth)):
+        """이벤트에 저장된 사람 검토 이력을 커서 기반으로 조회한다."""
         with sessions() as db:
             if db.get(Event, event_id) is None:
                 raise _error(404, "RESOURCE_NOT_FOUND", "Event not found")
@@ -408,23 +448,28 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
 
     @app.post("/internal/v1/workers/register", status_code=201)
     def register_worker(req: WorkerRegistration, _: None = Depends(pod_auth)):
+        """Runpod worker 인스턴스와 모델 정보를 등록한다."""
         return pod_call(coordinator().register, req.model_dump())
 
     @app.post("/internal/v1/workers/{worker_id}/heartbeat")
     def worker_heartbeat(worker_id: str, req: WorkerHeartbeat, _: None = Depends(pod_auth)):
+        """Runpod worker의 상태와 실행 진행 시각을 갱신한다."""
         return pod_call(coordinator().heartbeat, worker_id, req.model_dump())
 
     @app.post("/internal/v1/workers/{worker_id}/claim")
     def claim_run(worker_id: str, _: None = Depends(pod_auth)):
+        """대기 중인 실행 하나를 worker에 할당한다."""
         assignment = pod_call(coordinator().claim, worker_id)
         return {"assignment": assignment}
 
     @app.post("/internal/v1/runs/{run_id}/events", status_code=201)
     def register_event(run_id: str, req: EventRegistration, _: None = Depends(pod_auth)):
+        """Runpod의 사고 후보 이벤트와 S3 근거를 검증해 등록한다."""
         return pod_call(coordinator().event, run_id, req.model_dump())
 
     @app.post("/internal/v1/runs/{run_id}/complete")
     def complete_run(run_id: str, req: RunCompletion, _: None = Depends(pod_auth)):
+        """Runpod 최종 manifest를 검증하고 분석 실행 상태를 확정한다."""
         return pod_call(coordinator().complete, run_id, req.model_dump())
 
     return app
