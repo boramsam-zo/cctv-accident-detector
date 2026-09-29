@@ -1,0 +1,84 @@
+name: cctv-accident-dev
+
+x-app-common: &app-common
+  image: cctv-accident-app:dev
+  build:
+    context: ../..
+    dockerfile: deploy/compose/Dockerfile.app
+  init: true
+  environment: &app-environment
+    DATABASE_URL: postgresql+psycopg://cctv:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/cctv
+    APP_API_KEY: ${APP_API_KEY:?Set APP_API_KEY in .env}
+    S3_BUCKET: ${S3_BUCKET:?Set the video bucket in .env}
+    S3_KEY_PREFIX: ${S3_KEY_PREFIX:?Set the development S3 prefix in .env}
+    AWS_REGION: ${AWS_REGION:-ap-northeast-2}
+    MODAL_ENVIRONMENT: ${MODAL_ENVIRONMENT:-dev}
+    MODAL_APP_NAME: ${MODAL_APP_NAME:-cctv-accident-inference}
+    MODAL_FUNCTION_NAME: ${MODAL_FUNCTION_NAME:-analyze_video_job}
+  restart: unless-stopped
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: cctv
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: cctv
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cctv -d cctv"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  migrate:
+    <<: *app-common
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  backend:
+    <<: *app-common
+    command: ["uvicorn", "services.backend.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  worker:
+    <<: *app-common
+    command: ["python", "-m", "services.backend.run_worker"]
+    environment:
+      <<: *app-environment
+      GEMINI_API_KEY: ${GEMINI_API_KEY:?Set GEMINI_API_KEY in .env}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.6-flash}
+      MODAL_TOKEN_ID: ${MODAL_TOKEN_ID:?Set MODAL_TOKEN_ID in .env}
+      MODAL_TOKEN_SECRET: ${MODAL_TOKEN_SECRET:?Set MODAL_TOKEN_SECRET in .env}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  streamlit:
+    <<: *app-common
+    command: ["streamlit", "run", "apps/streamlit/app.py", "--server.address", "0.0.0.0", "--server.port", "8501", "--server.headless", "true"]
+    environment:
+      BACKEND_API_URL: http://backend:8000
+      APP_API_KEY: ${APP_API_KEY:?Set APP_API_KEY in .env}
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "8501:8501"
+
+volumes:
+  postgres_data:
