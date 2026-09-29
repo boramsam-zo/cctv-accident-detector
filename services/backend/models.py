@@ -7,6 +7,7 @@ from .db import Base
 
 
 def now() -> datetime:
+    """DB 생성·갱신 시각에 사용할 현재 UTC 시각을 반환한다."""
     return datetime.now(timezone.utc)
 
 
@@ -39,6 +40,7 @@ class Run(Base):
     profile_id: Mapped[str] = mapped_column(String(120))
     status: Mapped[str] = mapped_column(String(30), default="queued")
     outcome: Mapped[str] = mapped_column(String(30), default="pending")
+    modal_call_id: Mapped[str | None] = mapped_column(String(120))
     pod_id: Mapped[str | None] = mapped_column(String(120))
     worker_instance_id: Mapped[str | None] = mapped_column(String(120))
     processed_pts: Mapped[float | None]

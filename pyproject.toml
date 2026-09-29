@@ -21,6 +21,7 @@ dev = [
     "pytest>=8,<10",
     "streamlit>=1.37,<2",
     "moto[server]>=5,<6",
+    "pytest-cov>=7.1.0",
 ]
 
 [build-system]

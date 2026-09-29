@@ -1,8 +1,6 @@
-# Streamlit 데모 화면
+# Streamlit 화면
 
-API 구현 전 화면 흐름을 검토하기 위한 프론트엔드입니다. 저장소의
-`docs/contracts/demo-analysis-cases-v0.2.json`을 읽어 대기, 분석 중, 후보 없음, 부분 완료,
-설명 생성 중, 문서 근거 부족, VLM 실패, 전체 실패 상태를 표시합니다.
+기본 실행은 FastAPI에 연결합니다. `BACKEND_API_URL`과 `APP_API_KEY`가 필요하며, 연결되지 않으면 화면에 오류를 표시합니다. `APP_MODE=demo`를 명시한 경우에만 `docs/contracts/demo-analysis-cases-v0.2.json`의 가상 응답을 사용합니다.
 
 ## 실행
 
@@ -21,6 +19,8 @@ Git Bash에서는 가상 환경을 다음처럼 활성화합니다.
 source .venv/Scripts/activate
 ```
 
+실제 흐름은 백엔드와 함께 실행해야 합니다. Compose 실행 방법은 [개발용 Compose 안내](../../deploy/compose/README.md)를 참고하세요.
+
 ## 현재 범위
 
 - 로컬 영상 최대 5개 선택, 접수 목록과 개별 미리보기
@@ -34,12 +34,11 @@ source .venv/Scripts/activate
 - 세션 내 사람 검토 저장
 - 가상 응답 8종 전환
 
-현재 화면은 데모 데이터만 사용합니다. 영상은 브라우저 세션에서만 미리보기하며 서버, S3 또는
-Runpod으로 전송하지 않습니다. 검토 결과도 DB가 아니라 현재 Streamlit 세션에만 보관됩니다.
+실제 모드는 영상을 FastAPI로 업로드하고 작업·검토 결과를 PostgreSQL에 저장합니다. 데모 모드의 영상과 검토 결과는 브라우저 세션에서만 유지됩니다.
 
-## 다음 연결점
+## 연결 API
 
-FastAPI 구현 후 화면의 데이터 공급을 다음 API로 교체합니다.
+화면은 다음 FastAPI를 사용합니다.
 
 1. `POST /api/v1/videos`
 2. `POST /api/v1/jobs`

@@ -1,27 +1,16 @@
 # 팀 진행 기록
 
-## 2026-09-27 — 업로드 영상 기반 실시간 시연 범위 확정
+## 2026-09-29 — Modal 비동기 GPU 흐름으로 문서 정리
 
-- 변경: 실제 CCTV/RTSP 연결을 첫 시연 범위에서 제외하고, 업로드한 영상 파일을 Pod가 원본 시간순으로 읽으며 후보를 완료 전에 부분 등록하는 방식으로 확정했다.
-- 유지: 상시 Runpod GPU Pod, job/run 이력, worker heartbeat, S3 근거·manifest, VLM/RAG와 사람 검토.
-- 결정: 시연은 원본 재생속도 1×, 현재 재생시각까지의 프레임만 사용하는 `file_realtime_1x` 기준이다.
-- 확인 필요: UI 재생시각과 worker 처리 PTS 허용 오차, 진행률 계산, 중단 후 checkpoint 재개 범위.
-- 미실행: 실제 업로드→Pod 시간순 추론→부분 후보 표시의 통합 시험.
+- 변경: 현재 GPU 실행 기준을 Modal `spawn()`·`modal_call_id`·완료 조회·S3 manifest 검증으로 통일했다. 업로드 MP4 전체를 오프라인으로 분석하며 부분 event push는 현재 범위가 아니다.
+- 코드 상태: FastAPI·BE 작업 프로세스·Modal 함수·Gemini 연결 코드는 작성됐고, 실제 Modal GPU·S3·Gemini E2E는 아직 검증 전이다.
+- 후속: 실제 가중치와 S3 권한으로 한 영상의 업로드→추론→근거 저장→Gemini JSON을 확인한다. RAG·최종 보고 연결은 별도 작업이다.
 
-## 2026-09-27 — 상시 Runpod GPU Pod 확정
+## 2026-09-27 — 이전 파일 기반 실시간 시연 계획
 
-- 변경: GPU 실행 방식을 Runpod Serverless에서 상시 GPU Pod로 확정하고, 제출/polling 계약을 상시 worker·heartbeat·camera session·실시간 event push 계약으로 교체했다.
-- 유지: 녹화 영상의 job/run 이력, S3 manifest 검증, VLM/RAG 후속 처리, 사람 검토 구조는 유지한다.
-- 후속 범위 변경: 실제 CCTV/RTSP 연결은 제외하고 업로드 영상 기반 시연으로 확정했다.
-- 미실행: Pod 생성·결제, 모델 상시 로딩, 업로드 영상 부분 event 등록, 장애 복구 시험.
-
-## 2026-09-27 — GPU 실행 계층 Runpod 전환 이력
-
-- 변경: Modal 기반 비동기 호출 계약을 Runpod Serverless queue endpoint의 `/run` 제출, `runpod_job_id`, `/status` 회수 방식으로 교체했다.
-- 이유: 프로젝트 GPU 제공자를 Runpod로 변경한다는 사용자 결정을 반영했다.
-- 유지: S3 manifest를 영구 결과 기준으로 사용하고 DB lease·중복 방지·옛 run 격리·후속 VLM/RAG 처리 구조는 유지한다.
-- 후속 결정: 같은 날 상시 GPU Pod 방식으로 확정해 위 항목으로 대체했다.
-- 미실행: Runpod 계정·endpoint 생성, 유료 GPU 호출, container 배포, 실제 모델 추론 및 S3 연결.
+- 당시 업로드 영상을 재생속도 1×로 처리하고 완료 전 후보를 등록하는 방안을 논의했다.
+- 현재 Modal 함수는 MP4 전체를 오프라인으로 분석해 완료 후 결과를 회수한다. 당시 실시간·상시 worker·부분 등록 방안은 구현 기준으로 사용하지 않는다.
+- 원본 기획 이력은 Git 기록에서 확인할 수 있다. 실제 실시간 CCTV 입력과 중단 후 checkpoint 재개는 후속 범위다.
 
 ## 2026-09-26 — 서비스 PRD v0.2 문서 준비
 
@@ -34,4 +23,4 @@
 
 ## 이후 기록 양식
 
-날짜·작업 영역 / 변경 이유 / 코드·설정·계약 버전 / 실제 실행 명령·환경 / 원본 결과 경로 / 전후 조건과 차이 / 확인 결과 / 미실행·남은 문제를 남긴다. 완료한 현재 상태는 current_status.md, 다음 TODO는 IMPLEMENTATION_PLAN.md에서 관리한다.
+날짜·작업 영역 / 변경 이유 / 코드·설정·계약 버전 / 실제 실행 명령·환경 / 원본 결과 경로 / 전후 조건과 차이 / 확인 결과 / 미실행·남은 문제를 남긴다. 구현 요약은 루트 `README.md`의 현재 상태, 다음 TODO는 `IMPLEMENTATION_PLAN.md`에서 관리한다.

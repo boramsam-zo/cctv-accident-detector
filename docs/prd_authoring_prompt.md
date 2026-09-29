@@ -5,19 +5,21 @@
 ```text
 기존 CCTV 서비스 PRD와 역할별 개발 문서를 수정해 줘.
 먼저 PROJECT_BRIEF.md, docs/contracts/service_contract.md,
-docs/roles/README.md, docs/current_status.md, IMPLEMENTATION_PLAN.md를 읽어라.
+docs/contracts/modal-inference-v1.md, docs/roles/README.md,
+README.md의 현재 상태, docs/PROGRESS.md, IMPLEMENTATION_PLAN.md를 읽어라.
+GPU 실행 방식은 Modal 계약을 기준으로 한다.
 
 확정된 사용자 선택:
 - 팀 개발·발표용 전체 서비스 PRD다. 개인별 업무 배정은 하지 않는다.
 - 대상은 관제 담당자, 프로젝트 영상 검토자, 경찰·사고 대응 담당자다.
-- Streamlit, FastAPI, S3, 상시 Runpod GPU Pod 실시간 추론, YOLO11s 7개 클래스(수신 체크포인트 기준),
-  X3D-S, 외부 VLM, RAG 유사 사례·판례/문서 검색, 보고 초안,
-  사람의 최종 검토, 작업 DB, CloudWatch/Runpod Console을 반영한다.
+- Streamlit, FastAPI, S3, Modal GPU 비동기 오프라인 추론, YOLO11s 7개 클래스(수신 체크포인트 기준),
+  X3D-S, Gemini VLM, 향후 RAG 유사 사례·판례/문서 검색과 보고 초안,
+  사람의 최종 검토, PostgreSQL, CloudWatch/Modal Dashboard를 반영한다.
 - X3D-S는 후보 구간을 판별하고 YOLO는 해당 영상의 객체 정보를 제공한다.
   X3D 후보→원본 장면→YOLO 순서를 제안하며 YOLO crop을 X3D에 넣지 않는다.
 - 수신 모델의 클래스·해시·정적 설정은 received-model-metadata-v0.2.json을 따른다.
   Dynamic 의미, 실제 모델 동작,
-  VLM 업체·문서 확보·배포 크기·예산은 확인된 기록만 확정으로 쓴다.
+  RAG 문서 확보·배포 크기·예산은 확인된 기록만 확정으로 쓴다.
 
 문서 운영:
 - 전체 목표·범위는 PROJECT_BRIEF.md에,

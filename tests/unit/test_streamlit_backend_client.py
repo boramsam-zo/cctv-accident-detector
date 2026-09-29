@@ -5,9 +5,11 @@ from apps.streamlit.backend_client import BackendClient, BackendError
 
 
 def test_client_passes_auth_idempotency_and_contract_fields():
+    """클라이언트가 인증·멱등성 헤더와 작업 생성 계약 필드를 전달하는지 확인한다."""
     seen = []
 
     def handle(request):
+        """분석 프로필과 작업 생성 요청을 기록하고 테스트 응답을 반환한다."""
         seen.append(request)
         if request.url.path == "/api/v1/analysis-profiles":
             return httpx.Response(200, json={"items": [
@@ -28,7 +30,9 @@ def test_client_passes_auth_idempotency_and_contract_fields():
 
 
 def test_client_surfaces_review_revision_conflict():
+    """검토 버전 충돌 응답을 호출자가 구분할 수 있는 예외로 전달한다."""
     def handle(request):
+        """검토 버전 충돌에 해당하는 HTTP 409 응답을 반환한다."""
         return httpx.Response(409, json={"error": {
             "code": "REVIEW_REVISION_CONFLICT", "message": "Review revision changed",
             "retryable": False

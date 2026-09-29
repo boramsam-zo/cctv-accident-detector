@@ -1,12 +1,14 @@
 # CCTV 사고 의심 분석 API 명세서 — v0.2
 
+> 공개 `/api/v1` 계약과 Modal GPU 함수 연결을 구분합니다. 함수 입력·S3 결과 계약은 [Modal 추론 연결 계약](modal-inference-v1.md)을 따릅니다.
+
 작성일: 2026-09-27
 
-상태: 개발 착수용 계약. FastAPI 로컬 구현 진행 중; Pod GPU worker는 미구현
+상태: 공개 API와 Modal 호출 코드 구현, 실제 GPU·S3·Gemini E2E 검증 전
 기준: [PRD](../../PROJECT_BRIEF.md) · [공통 서비스 계약](service_contract.md) · [가상 응답](demo-analysis-cases-v0.2.json)
 
-이 문서는 Streamlit과 FastAPI 사이의 HTTP 계약을 정의한다. 모델 worker, Runpod GPU Pod, S3 내부 계약은
-[공통 서비스 계약](service_contract.md)의 Runpod 입력·결과 회수 규칙을 따른다.
+이 문서는 Streamlit과 FastAPI 사이의 HTTP 계약을 정의한다. BE 작업 프로세스의 Modal 제출·S3 결과 회수는
+[Modal 추론 연결 계약](modal-inference-v1.md)을 따른다.
 
 ## 1. 기본 규칙
 
@@ -40,11 +42,6 @@ job 보존 기간 이상으로 한다.
 | 자산 | GET | `/assets/{asset_id}/url` | 접근 확인 후 단기 URL 발급 |
 | 검토 | POST | `/events/{event_id}/reviews` | 사람 검토 이력 추가 |
 | 검토 | GET | `/events/{event_id}/reviews` | 사람 검토 이력 조회 |
-| 실시간 | POST | `/internal/v1/workers/register` | Pod worker 실행 인스턴스 등록 |
-| Pod 내부 | POST | `/internal/v1/workers/{worker_instance_id}/heartbeat` | worker·active run 상태 갱신 |
-| Pod 내부 | POST | `/internal/v1/workers/{worker_instance_id}/claim` | 대기 중인 run을 lease로 할당 |
-| Pod 내부 | POST | `/internal/v1/runs/{run_id}/events` | 처리 중 사고 의심 event·manifest 등록 |
-| Pod 내부 | POST | `/internal/v1/runs/{run_id}/complete` | 최종 manifest·coverage 등록 |
 
 `GET /analysis-profiles`는 FE가 임의의 profile ID를 입력하지 않게 하기 위한 추가 제안이다. 프로필을
 서버 설정으로 하나만 고정한다면 이 API를 제외하고 FE에 고정 ID를 배포할 수 있다.
@@ -220,7 +217,7 @@ Content-Type: multipart/form-data
 }
 ```
 
-DB에 job과 최초 run이 커밋된 뒤 응답한다. 상시 Pod worker가 작업을 lease로 가져가며 GPU 완료를 HTTP 요청에서 기다리지 않는다.
+DB에 job과 최초 run이 커밋된 뒤 응답한다. 별도 BE 작업 프로세스가 Modal 함수를 비동기 제출하며 GPU 완료를 HTTP 요청에서 기다리지 않는다.
 
 ### 6.2 작업 목록
 
@@ -541,101 +538,11 @@ coverage는 `scheduled_windows = predicted_windows + unclassified_windows + pend
 Streamlit은 terminal 상태(`completed`, `partial`, `failed`)에서 자동 조회를 멈춘다. 새로고침이나 버튼
 중복 클릭 시 같은 사용자 동작에는 같은 `Idempotency-Key`를 재사용한다.
 
-## 10. GPU Pod 내부 API
+## 10. Modal GPU 함수 연결
 
-`/internal/v1`은 Pod worker 전용이며 브라우저에 노출하지 않는다. Pod별 자격증명, TLS, 네트워크 허용 목록을 적용한다. Runpod API key와 S3 secret은 본문과 로그에 넣지 않는다.
+Modal 호출은 Streamlit이 사용하는 HTTP API가 아니다. BE 작업 프로세스가 queued run을 `spawn()`으로 제출하고 `modal_call_id`를 DB에 저장한다. 완료는 같은 프로세스가 호출 ID로 조회한다. 함수는 업로드 원본과 가중치를 S3에서 읽고 event/final manifest 및 clip·frame을 S3에 저장한다. BE는 결과 경로·SHA256·시각·coverage를 검증한 후 `GET /jobs/{job_id}` 응답에 후보와 상태를 반영한다. 함수 입력·출력과 실패 규칙은 [Modal 추론 연결 계약](modal-inference-v1.md)에 정의한다.
 
-### 10.1 worker 등록
-
-`POST /internal/v1/workers/register`
-
-```json
-{
-  "pod_id": "pod_01...",
-  "worker_instance_id": "worker_01...",
-  "started_at": "2026-09-27T06:00:00Z",
-  "models": {
-    "objects": {"family": "YOLO11s", "weights_sha256": "<64 lowercase hex>"},
-    "accident": {"family": "X3D-S", "weights_sha256": "<64 lowercase hex>"}
-  }
-}
-```
-
-### 10.2 heartbeat
-
-`POST /internal/v1/workers/{worker_instance_id}/heartbeat`
-
-```json
-{
-  "status": "ready",
-  "gpu_memory_used_bytes": 4294967296,
-  "active_run_id": "run_01...",
-  "sent_at": "2026-09-27T06:00:10Z"
-}
-```
-
-worker status는 `starting | ready | degraded | unhealthy | stopping`이다. heartbeat 주기와 offline 판정 시간은 운영 측정 후 확정한다.
-
-### 10.3 queued run 할당
-
-`POST /internal/v1/workers/{worker_instance_id}/claim`
-
-`ready` 상태이고 작업이 없는 worker가 호출한다. 응답은 `{ "assignment": null }` 또는 다음 형태다.
-
-```json
-{
-  "assignment": {
-    "schema_version": "service-draft-v0.2",
-    "job_id": "job_01",
-    "run_id": "run_01",
-    "source_video_id": "vid_01",
-    "input_object": {"bucket": "project-bucket", "key": "videos/vid_01/original.mp4", "sha256": "<64 lowercase hex>"},
-    "output_prefix": "jobs/job_01/runs/run_01/attempt-1/",
-    "analysis_profile": {"id": "profile_default_v1", "analysis_mode": "file_realtime_1x"},
-    "attempt": 1,
-    "lease_seconds": 60
-  }
-}
-```
-
-할당된 run은 `running`으로 전환된다. worker는 heartbeat로 lease를 갱신한다. 만료된 lease의 재할당·checkpoint 정책은 후속 구현에서 확정한다.
-
-### 10.4 처리 중 event 등록
-
-`POST /internal/v1/runs/{run_id}/events`
-
-```json
-{
-  "schema_version": "service-draft-v0.2",
-  "event_id": "evt_01...",
-  "sequence_number": 42,
-  "worker_instance_id": "worker_01...",
-  "start_seconds": 120.0,
-  "end_seconds": 124.0,
-  "candidate_time_s": 122.0,
-  "manifest_key": "jobs/job_01/runs/run_01/attempt-1/events/evt_01/manifest.json",
-  "manifest_sha256": "<64 lowercase hex>",
-  "detected_at": "2026-09-27T06:02:04Z"
-}
-```
-
-동일 `(run_id, sequence_number)` 또는 `(run_id, event_id)`의 재전송은 최초 등록 결과를 반환한다. BE는 manifest와 S3 객체를 검증하기 전 이벤트를 검토 가능 상태로 확정하지 않는다. FE는 기존 `GET /jobs/{job_id}`를 조회해 running 상태에서도 등록된 후보를 표시한다.
-
-`candidate_time_s`는 Runpod이 계산한 원본 영상 기준 후보 시각이다. 부분 event manifest에도 같은 필드를 필수로 넣어야 하며, BE는 요청 본문과 manifest의 값 및 `start_seconds ≤ candidate_time_s ≤ end_seconds`를 검증한다. 백엔드나 VLM이 이벤트 중간값을 후보 시각으로 만들어 넣지 않는다.
-
-### 10.5 최종 결과 등록
-
-`POST /internal/v1/runs/{run_id}/complete`
-
-```json
-{
-  "worker_instance_id": "worker_01",
-  "manifest_key": "jobs/job_01/runs/run_01/attempt-1/final.json",
-  "manifest_sha256": "<64 lowercase hex>"
-}
-```
-
-최종 manifest는 `schema_version`, `run_id`, `coverage`, `models`, `errors`를 포함한다. BE는 S3 객체의 경로와 SHA256, 창 개수 일치를 확인한다. 부분 event가 이미 저장됐다면 해당 후보를 유지하고 VLM 후속 단계 완료 여부에 따라 `enriching`, `completed`, `partial`로 전환한다.
+기존 `/internal/v1/workers/*`와 `/internal/v1/runs/*` 호환 경로는 현재 GPU 실행 흐름에서 사용하지 않는다. 새 화면 또는 Modal 함수에서 호출하지 않는다.
 
 ## 11. 확정이 필요한 항목
 
@@ -650,9 +557,9 @@ worker status는 `starting | ready | degraded | unhealthy | stopping`이다. hea
 | P0 | 후보 병합, 근거 클립 전후 길이, 대표 프레임 정책 | event/evidence 필드 |
 | P0 | 목록 기본/최대 `limit` 및 보존 기간 | 목록 API, 멱등 키·데이터 보존 |
 | P0 | signed URL 만료시간과 다운로드/스트리밍 정책 | 자산 API와 영상 재생 |
-| P0 | Pod GPU 종류·지역·container image·재시작 정책 | 실시간 지연·가용성·비용 |
-| P0 | UI 재생시각과 worker 처리 PTS의 허용 오차 | 동기화 상태·지연 표시 기준 |
-| P0 | heartbeat 주기·worker offline 판정·재시작 checkpoint | 장애 감지·중복 처리 |
+| P0 | Modal GPU 종류·리전·image·timeout·동시 실행 상한 | 처리시간·가용성·비용 |
+| P0 | 원본 영상 시각과 후보 clip·frame 시각의 허용 오차 | 근거 정합성 |
+| P0 | Modal call ID 저장 실패·프로세스 재시작·결과 회수 정책 | 장애 복구·중복 처리 |
 | P0 | VLM 제공자와 개인정보·원본 전송 허용 범위 | VLM 상태·오류·감사 기록 |
 | P0 | RAG corpus 종류·적용 지역·출처 공개 범위 | citation 스키마와 화면 표시 |
 | P1 | rate limit·동시 job·사용량 상한 | 429와 재시도 안내 |
@@ -665,8 +572,8 @@ worker status는 `starting | ready | degraded | unhealthy | stopping`이다. hea
 ## 12. 구현·검증 기준
 
 - FastAPI 구현 시 이 문서와 동일한 OpenAPI schema를 생성하고 FE가 해당 schema로 연동한다.
-- 가상 worker로 업로드→job 생성→상태 조회→후보 조회→검토 저장을 먼저 확인한다.
+- 공개 API 계약 테스트와 실제 업로드→Modal→S3 결과→Gemini JSON E2E를 각각 확인한다.
 - 같은 멱등 키의 중복 요청, 다른 본문의 키 재사용, 진행 중 재분석, 검토 revision 충돌을 시험한다.
 - 실패·미분류를 `no_candidates`로 변환하지 않는지 확인한다.
 - 다른 사용자 asset 접근과 만료 URL을 확인한다.
-- 실제 업로드 영상/S3/Runpod Pod/모델 연결 시험은 가상 API 계약 시험과 별도로 기록한다.
+- 실제 업로드 영상/S3/Modal/모델/Gemini 연결 시험은 단위·계약 시험과 별도로 기록한다.

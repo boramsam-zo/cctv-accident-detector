@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import os
 from datetime import datetime, timedelta, timezone
 from html import escape
 from pathlib import Path
@@ -61,13 +62,13 @@ def load_demo_cases() -> list[dict[str, Any]]:
         return json.load(file)["cases"]
 
 
-def initialize_state(cases: list[dict[str, Any]]) -> None:
+def initialize_state(cases: list[dict[str, Any]] | None = None) -> None:
     defaults = {
         "uploaded_videos": [],
         "selected_upload_index": 0,
         "current_page": "intake",
         "analysis_requested": False,
-        "selected_job_id": "demo-job-no-docs",
+        "selected_job_id": None,
         "review_by_event": {},
         "request_key": None,
         "asset_urls": {},
@@ -77,9 +78,10 @@ def initialize_state(cases: list[dict[str, Any]]) -> None:
         if key not in st.session_state:
             st.session_state[key] = value
 
-    available_ids = {case["job_id"] for case in cases}
-    if st.session_state.selected_job_id not in available_ids:
-        st.session_state.selected_job_id = cases[0]["job_id"]
+    if cases:
+        available_ids = {case["job_id"] for case in cases}
+        if st.session_state.selected_job_id not in available_ids:
+            st.session_state.selected_job_id = cases[0]["job_id"]
 
 
 def inject_styles() -> None:
@@ -279,7 +281,7 @@ def navigate_to(page: str) -> None:
     st.session_state.current_page = page
 
 
-def render_sidebar(cases: list[dict[str, Any]]) -> dict[str, Any]:
+def render_sidebar(cases: list[dict[str, Any]] | None = None) -> dict[str, Any] | None:
     with st.sidebar:
         st.markdown("## ◉ AegisTraffic AI")
         st.caption("업로드 영상 사고 분석 플랫폼")
@@ -323,14 +325,16 @@ def render_sidebar(cases: list[dict[str, Any]]) -> dict[str, Any]:
         if st.session_state.get("live_mode"):
             st.markdown("🟢 FastAPI 연결")
             st.markdown("◯ 영상 저장소는 업로드 시 확인")
-            st.markdown("◯ GPU 작업은 worker 등록 후 처리")
+            st.markdown("◯ Modal GPU 작업은 worker 처리 시 확인")
         else:
             st.markdown("🟡 FastAPI 데모 데이터")
-            st.markdown("⚪ Runpod GPU 미연결")
+            st.markdown("⚪ Modal GPU 미연결")
             st.markdown("⚪ S3 미연결")
         st.divider()
         st.caption("AI는 사고 의심 후보와 근거를 제시합니다. 최종 판단은 검토자가 수행합니다.")
-    return next(case for case in cases if case["job_id"] == st.session_state.selected_job_id)
+    if cases:
+        return next(case for case in cases if case["job_id"] == st.session_state.selected_job_id)
+    return None
 
 
 def open_analysis(index: int) -> None:
@@ -836,9 +840,16 @@ def main() -> None:
         initial_sidebar_state="expanded",
     )
     inject_styles()
-    cases = load_demo_cases()
+    app_mode = os.getenv("APP_MODE", "live").lower()
+    if app_mode not in {"live", "demo"}:
+        st.error("APP_MODE는 live 또는 demo여야 합니다.")
+        st.stop()
+    client = None if app_mode == "demo" else BackendClient.from_env()
+    if app_mode == "live" and client is None:
+        st.error("실제 모드에는 BACKEND_API_URL과 APP_API_KEY가 필요합니다.")
+        st.stop()
+    cases = None if client else load_demo_cases()
     initialize_state(cases)
-    client = BackendClient.from_env()
     st.session_state.live_mode = client is not None
     st.session_state.backend_client = client
     if client:

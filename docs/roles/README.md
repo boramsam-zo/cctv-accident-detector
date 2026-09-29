@@ -4,7 +4,7 @@
 
 ## 읽기 순서
 
-1. [전체 PRD](../../PROJECT_BRIEF.md): 목표·범위·최신 구조.
+1. [전체 PRD](../../PROJECT_BRIEF.md): 현재 목표·범위. GPU 함수 입력·결과는 [Modal 계약](../contracts/modal-inference-v1.md)을 따른다.
 2. [공통 API·데이터 계약](../contracts/service_contract.md): 필드·상태·버전·오류.
 3. 자기 영역 문서와 연결할 상대 영역 문서.
 4. [요구사항](../requirements.md), [통합 확인 시나리오](validation.md).
@@ -13,7 +13,7 @@
 |---|---|---|
 | FE | [frontend.md](frontend.md) | Streamlit 사용자 흐름·상태 표시·API 연결 |
 | BE | [backend.md](backend.md) | FastAPI·DB·작업 제출/회수·검토 저장 |
-| 모델 | [model.md](model.md) | YOLO11s/X3D-S 입출력·근거 생성·Runpod worker |
+| 모델 | [model.md](model.md) | YOLO11s/X3D-S 입출력·Modal 근거 생성 |
 | VLM/RAG | [vlm_rag.md](vlm_rag.md) | 장면 설명·문서 검색·출처·보고 초안 |
 | 인프라 | [infrastructure.md](infrastructure.md) | 배포 위치·권한·비용·보관·관측 |
 | QA·통합 | [validation.md](validation.md) | 실제 인수 기록·누락/중복/복구·품질 구분 |
@@ -27,7 +27,7 @@
 | 담당 영역의 구현 방식·파일·로컬 확인법 | 해당 역할 문서 |
 | 요구사항과 인수 조건 | docs/requirements.md |
 | 전체 TODO와 다음 작업 | IMPLEMENTATION_PLAN.md |
-| 현재 확인된 사실 | docs/current_status.md |
+| 현재 구현 요약 | README.md의 현재 상태 |
 | 실행·변경 이유·테스트·남은 문제 | docs/PROGRESS.md |
 | 개념·설계 선택의 이유 | docs/LEARNING_LOG.md |
 
@@ -42,7 +42,7 @@
 ```text
 이 프로젝트의 [FE/BE/모델/VLM·RAG/인프라] 영역을 맡았다.
 먼저 PROJECT_BRIEF.md, docs/contracts/service_contract.md,
-docs/roles/의 해당 문서와 docs/current_status.md를 읽어라.
+docs/roles/의 해당 문서와 README.md의 현재 상태를 읽어라.
 최신 사용자 선택과 제안·미정·구현 완료를 구분하라.
 공통 계약에 맞춘 이번 작은 작업의 입력·출력·완료 기준을 먼저 설명하라.
 가상 데이터를 쓰면 명확히 표시하고 실제 모델 성과로 보고하지 마라.
