@@ -5,7 +5,7 @@
 
 ## 최신 개발 문서
 
-[PRD](../PROJECT_BRIEF.md), [공통 계약](contracts/service_contract.md), [역할별 문서](roles/README.md)를 개발 기준으로 사용합니다. API·추론 필드는 공통 계약에서 관리합니다. 실제 구현 상태는 [현재 상태](current_status.md)를 따릅니다.
+[PRD](../PROJECT_BRIEF.md), [공통 계약](contracts/service_contract.md), [역할별 문서](roles/README.md)를 개발 기준으로 사용합니다. API·추론 필드는 공통 계약에서 관리합니다. 실제 구현 상태는 [README 현재 상태](../README.md#현재-상태)를 따릅니다.
 
 ## 전체 처리 구조
 
@@ -78,10 +78,8 @@ AWS
 │   ├── main.tf
 │   ├── user_data.sh
 │   └── README.md
-├── configs/models/
-│   └── README.md
-├── models/
-│   └── README.md
+├── scripts/
+│   └── smoke_modal_gemini.py
 ├── training/
 │   ├── object_detection/
 │   │   └── README.md
@@ -94,7 +92,7 @@ AWS
     └── README.md
 ```
 
-위 트리는 주요 파일과 모델·학습 기본 구조를 함께 보여줍니다. Streamlit은 FastAPI 공개 API로 영상 접수·작업 조회·근거 재생·검토 저장을 수행합니다. PostgreSQL 스키마는 Alembic 마이그레이션으로 관리합니다. 모델 코드의 실제 GPU 실행은 Modal에서 검증해야 합니다.
+위 트리는 주요 파일과 학습 기본 구조를 함께 보여줍니다. Streamlit은 FastAPI 공개 API로 영상 접수·작업 조회·근거 재생·검토 저장을 수행합니다. PostgreSQL 스키마는 Alembic 마이그레이션으로 관리합니다. 모델 코드의 실제 GPU 실행은 Modal에서 검증해야 합니다. 가중치는 저장소 밖의 S3에 두고, 객체 키와 SHA256은 Modal Secret으로 전달합니다. 현재 추론 설정은 `src/accident_vision/pipeline.py`와 `timeline.py`에 있습니다.
 
 ## 폴더 책임
 
@@ -108,8 +106,7 @@ AWS
 | `deploy/terraform/dev-ec2/` | 개발용 EC2, IAM, SSM 접속, Docker·Compose 설치 |
 | `src/accident_vision/` | 로컬과 Modal 함수가 함께 사용하는 객체 탐지, 충돌 의심 탐지, 영상 파이프라인 |
 | `deploy/modal/` | Modal GPU 함수 배포 진입점과 S3 결과 저장 |
-| `configs/models/` | 모델별 설정 |
-| `models/` | 가중치 버전과 SHA256 검증 정보 |
+| `scripts/` | 업로드부터 Modal 추론·Gemini JSON까지 실제 E2E 확인 |
 | `training/object_detection/` | YOLO11s 학습 및 평가 자료 |
 | `training/collision_detection/` | X3D-S와 기존 충돌 모델 학습 및 평가 자료 |
 | `tests/smoke/` | 샘플 영상 기반 공통 추론 실행 확인 |
@@ -127,8 +124,6 @@ AWS
 | `src/accident_vision/` | `collision/loader.py`, `collision/predict.py`, `collision/preprocessing.py`, `collision/postprocessing.py` | X3D-S 로드·추론·클립 전처리·점수 후처리 |
 | `src/accident_vision/` | `pipeline/analyze_video.py`, `pipeline/event_grouping.py`, `pipeline/result_builder.py` | 공통 영상 추론·의심 구간 묶음·결과 JSON 생성 |
 | `src/accident_vision/` | `io/video_file.py`, `io/s3_video.py` | 로컬 파일·S3 영상 입력 |
-| `configs/models/` | `yolo11s.yaml`, `x3d_s.yaml` | 모델별 가중치 버전·입력 형식·추론 임계값 |
-| `models/` | `registry.yaml`, `checksums.sha256` | 가중치 저장 위치·버전·SHA256 검증 정보 |
 | `training/object_detection/` | `configs/train.yaml`, `notebooks/train_yolo11s.ipynb`, `notebooks/evaluate_yolo11s.ipynb` | YOLO11s 학습 설정·실험·평가 |
 | `training/collision_detection/` | `configs/train_x3d_s.yaml`, `notebooks/train_x3d_s.ipynb`, `notebooks/evaluate_x3d_s.ipynb` | X3D-S 학습 설정·실험·평가 |
 | `tests/smoke/` | `test_local_inference.py`, `test_model_loading.py` | 샘플 영상 추론·모델 로드 확인 |

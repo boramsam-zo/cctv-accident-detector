@@ -1,10 +1,10 @@
-# 모델 — YOLO11s·X3D-S·Runpod 추론
+# 모델 — YOLO11s·X3D-S·Modal 추론
 
 기준: [PRD](../../PROJECT_BRIEF.md) · [공통 계약](../contracts/service_contract.md). **서비스 선택은 YOLO11s + X3D-S다.** 선택한 이름과 실제 확보·검증된 가중치를 구분한다. 기존 R3D-18 결과는 비교 이력이며 이 구성의 성능 증거로 옮기지 않는다.
 
 ## 책임과 처리 흐름
 
-S3 업로드 원본+분석 프로필→원본 PTS 순서 디코딩→X3D-S 창별 점수·후보 정리→후보 원본 장면의 YOLO 객체 정보→클립·프레임·결과 manifest→S3 저장과 BE 부분 event/최종 run 결과 등록.
+S3 업로드 원본+분석 프로필→MP4 오프라인 디코딩→X3D-S 창별 점수·후보 정리→후보 원본 장면의 YOLO 객체 정보→클립·프레임·결과 manifest→S3 저장→BE 완료 후 검증·event 등록.
 
 사용자 확정 목적은 X3D-S의 사고 후보 구간 판별과 YOLO의 사고 영상 객체 정보 제공이다. 이를 반영해 X3D-S로 후보를 찾은 뒤 해당 원본 장면에 YOLO를 순차 실행하는 방식을 제안한다. YOLO crop/특징을 X3D-S에 입력하지 않는다. 후보가 없으면 YOLO를 skipped/no_candidates로 남긴다. 후보 전후 어느 범위·몇 프레임에서 객체를 찾을지는 근거 프로필에 기록한다.
 
@@ -14,15 +14,15 @@ S3 업로드 원본+분석 프로필→원본 PTS 순서 디코딩→X3D-S 창�
 |---|---|---|
 | 확인한 7개 class ID/name, 원래 클래스와의 매핑, confidence/NMS 설정, 입력 크기, 좌표 복원 | 학습된 사고 분류 가중치, 클래스 순서, 프레임 수/간격·crop·정규화, 창 길이/간격, 판정 규칙 | weights SHA256, 코드/패키지 버전, 모델 출처·사용 조건, 입력 품질 기준, GPU 종류, 측정 범위 |
 
-사용자가 지정한 deployment_handoff의 두 가중치와 코드를 확인했다. 파일 11개가 동봉 manifest의 크기·SHA256과 일치하며 YOLO .pt의 클래스 7개를 정적 확인했다. Dynamic의 뜻은 미확인이다. [접수 근거](../contracts/received-model-metadata-v0.2.json)와 공통 계약의 클래스 맵을 따른다. 일반 객체/행동 사전학습 모델을 사고 모델로 표시하지 않는다. 기존 R3D의 설정을 X3D에 복사하지 않는다.
+이전 deployment_handoff 묶음 11개 파일의 정적 확인 결과는 [접수 근거](../contracts/received-model-metadata-v0.2.json)에 남아 있다. 현재 선택한 YOLO 가중치는 별도 `yolo11s.pt`이므로 이전 `yolo11s_accident_150_e30_best.pt`의 해시를 현재 배포 해시로 사용하지 않는다. Dynamic의 뜻은 미확인이다. 일반 객체/행동 사전학습 모델을 사고 모델로 표시하지 않는다. 기존 R3D의 설정을 X3D에 복사하지 않는다.
 
 ## 수신 코드에서 확인한 설정과 추가 연결
 
-- YOLO 파일: `yolo11s_accident_150_e30_best.pt`, SHA256 `44f7e937068ec8862e30245314ec1cd54d6782e716eec1abc3fcf3ab7b761007`. 입력 640, confidence 0.25, 후보 시각 **한 프레임** 객체 탐지. 30epoch는 전달 README 설명이며 체크포인트 최상위 epoch 값은 -1이다.
+- 현재 선택한 YOLO 파일: `.local/deployment_handoff/models/yolo11s.pt`, SHA256 `51b8873f49d6ddf8611de6e3bd2bc88fca00d6d5de62638791d01b25fd9a2dcf`. 입력 640, confidence 0.25, 후보 시각 **한 프레임** 객체 탐지. 배포 시 실제 S3 객체 해시와 다시 대조한다.
 - X3D 파일: `x3d_s_real_so_tad_epoch7_best_model.pt`, SHA256 `ca2db4a25c9cd2d859a7143932d911a3351beacc5193de3ada16f3115bea09bf`. 체크포인트 epoch 7·threshold 0.5를 정적 확인했다.
 - 전달 코드: RGB 182×182, 2초 창·16장·1초 이동, uint8/255 후 mean 0.45/std 0.225, Normal=0/Collision=1(전달 설명 기준), 양성 기준 ≥0.5. 연속 양성 창을 묶고 음성 창에서 끊는다. 첫 양성 창 중간을 후보 시각, 창 끝을 최초 관측 가능 시각으로 기록한다.
 - `pipeline.py`는 최대 120초 상한과 전체 축소 프레임 적재를 사용한다. 프레임 인덱스/FPS로 시간을 계산하고 짧은 영상에서는 샘플 인덱스를 clamp하므로, 기존 저장소의 실제 PTS·서로 다른 프레임·미분류 정책과 차이가 있다. 120초는 받은 코드의 상한이며 새 서비스 운영 합격 기준이 아니다.
-- `streaming.py`는 시간순 프레임 입력용 후보 emitter다. 후보 한 프레임의 실제 입력 시각을 별도 필드로 반환한다. 파일 디코딩·pacing·S3·Runpod·VLM 전송 자체는 포함하지 않는다.
+- 현재 `src/accident_vision/pipeline.py`는 MP4 전체를 오프라인으로 분석하고, `timeline.py`가 후보 창을 묶는다. 재생속도 1× 처리나 부분 event push는 현재 구현 범위가 아니다.
 - 실제 PTS와 샘플 품질 검증, 실패/미분류 coverage, 근거 클립·프레임 생성, 계약 어댑터, 클라우드 연결을 추가해야 한다. 기존 평가 재현 프로필과 이 보완을 넣은 서비스 프로필을 버전으로 나누고 전후 비교한다.
 - 전달 README의 SO-TAD400 성능·보류79 설명은 제공자 보고다. 이번에는 평가 목록·예측을 받거나 성능을 재계산하지 않았다. 기존 팀의 SO-TAD479/400 비교와 혼동하지 않는다.
 
@@ -35,11 +35,11 @@ S3 업로드 원본+분석 프로필→원본 PTS 순서 디코딩→X3D-S 창�
 - 클립은 원본 기준 시작/끝과 해시를 남기고 대표 프레임마다 원본 시각을 넣는다. 검토용 후행 프레임 사용은 탐지 당시 사용 프레임과 구분한다.
 - YOLO 박스는 원본 크기에 복원한 뒤 정규화한다. 박스 수를 사고 차량 수로 확정하지 않는다. 추적기를 추가하지 않은 상태에서 지속 track_id를 보장하지 않는다.
 
-## Runpod 상시 worker의 경계
+## Modal GPU 함수의 경계
 
-worker는 시작 시 모델을 한 번 로드하고 업로드 영상 run을 처리한다. 입력은 공통 계약의 등록 영상과 작업이며, 출력은 S3 manifest 위치·해시와 BE에 등록할 부분 event/최종 run 결과다. GPU 단계는 근거 저장까지 담당하고 외부 VLM 응답 대기는 BE로 넘긴다. 모델 로딩 실패·파일 다운로드/디코딩 실패·OOM·timeout을 단계별 오류로 구분한다. 재시도 산출물은 run/attempt 경로에 분리하고 원본·이전 결과를 덮어쓰지 않는다.
+Modal 함수는 호출마다 S3에서 가중치와 업로드 영상을 내려받아 SHA256을 검증하고 GPU 추론을 실행한다. 출력은 S3 event/final manifest 위치·해시다. GPU 단계는 근거 저장까지 담당하고 Gemini 응답 대기는 BE로 넘긴다. 모델 로딩 실패·파일 다운로드/디코딩 실패·OOM·timeout을 단계별 오류로 구분한다. 재시도 산출물은 run/attempt 경로에 분리하고 원본·이전 결과를 덮어쓰지 않는다.
 
-BE가 상태를 판단할 수 있도록 heartbeat, 실제 시작/끝, 마지막 처리 PTS, 처리 창 수, 주요 단계 시간과 job/run/event/worker ID를 로그·manifest에 기록한다. GPU 동시 run 수·메모리·모델 동시 적재 가능성은 측정 전 미확인이다.
+BE가 상태를 판단할 수 있도록 `run_id`, 모델 해시, 처리 창 수와 coverage, 후보 시각, 오류를 manifest에 기록한다. `modal_call_id`는 BE의 `runs` 테이블에 남긴다. GPU 실제 처리시간·동시성·메모리 사용량은 통합 시험에서 측정한다.
 
 ## 기존 코드에서 참고할 것
 

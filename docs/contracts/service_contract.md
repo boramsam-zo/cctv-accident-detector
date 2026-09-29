@@ -1,8 +1,8 @@
 # 공통 API·데이터 계약 — service-draft-v0.2
 
-> GPU 작업 수거·부분 이벤트 등록은 이전 Runpod 설계 기록입니다. 현재 구현은 [Modal 추론 연결 계약](modal-inference-v1.md)을 따르며, 이 문서의 공개 API·사람 검토 데이터 계약은 계속 사용합니다.
+> GPU 작업은 [Modal 추론 연결 계약](modal-inference-v1.md)을 따릅니다. 이 문서는 공개 API·결과 데이터·사람 검토 계약을 함께 정의합니다.
 
-작성일 2026-09-26. **개발 착수를 위한 제안 명세이며 구현된 API가 아니다.** PRD의 기능 범위를 FE·BE·모델·VLM/RAG가 같은 이름으로 연결하기 위한 기준이다. 실제 저장소에 존재하는 R3D 결과 JSON과 자동 호환된다고 가정하지 않는다.
+작성일 2026-09-26. **개발 계약이며 공개 API와 Modal 연결은 일부 구현됐다. 실제 GPU 통합은 검증 전이다.** PRD의 기능 범위를 FE·BE·모델·VLM/RAG가 같은 이름으로 연결하기 위한 기준이다. 실제 저장소에 존재하는 R3D 결과 JSON과 자동 호환된다고 가정하지 않는다.
 
 공통 필드·상태·API 변경은 이 문서에서 먼저 한다. 역할별 문서는 이를 링크한다. 예시는 [가상 응답 모음](demo-analysis-cases-v0.2.json)이며 실제 영상·예측·문서 인용을 포함하지 않는다.
 
@@ -13,8 +13,7 @@
 | `source_video_id` | BE가 등록한 원본 영상 ID. 파일 이름은 표시용이며 모델 입력에 사고 암시 정보로 전달하지 않음 |
 | `job_id` | 사용자의 한 분석 요청. 원본·분석 범위·요청자·선택한 설정 버전 연결 |
 | `run_id` | 실제 처리 시도. 재분석은 새 ID. 이전 run의 결과·실패·검토는 보존 |
-| `pod_id` | Runpod가 부여한 Pod ID. 운영·로그 연결용이며 외부 UI에는 기본 노출하지 않음 |
-| `worker_instance_id` | Pod 안의 추론 프로세스가 시작할 때 생성하는 인스턴스 ID. 재시작마다 변경 |
+| `modal_call_id` | Modal `spawn()`으로 받은 비동기 함수 호출 ID. `runs`에 보관하고 결과 회수에 사용 |
 | `event_id` | run 안에서 생성한 검토 후보 ID. 실제 사고 사건의 확정 ID가 아님 |
 | `asset_id` | 원본·클립·프레임·manifest 등 파일의 ID. DB가 bucket/key/version/checksum과 연결 |
 | `report_id`, `revision` | 후보에 연결된 보고 초안과 버전. 후속 단계 재시도로 새 버전 생성 |
@@ -29,8 +28,8 @@
 | 상태 | 정의 |
 |---|---|
 | queued | 요청·run이 DB에 저장되어 처리 대기 |
-| dispatching | BE가 녹화 분석 작업을 worker에 배정 중. 접수 여부가 불명확하면 사유와 확인 기한 유지 |
-| running | Pod worker가 녹화 분석 작업을 lease로 점유해 처리 중. 실제 시작 시각과 worker_instance_id를 기록 |
+| dispatching | BE 작업 프로세스가 Modal 함수를 제출 중. 호출 ID 저장 전 오류는 실패로 기록 |
+| running | Modal 함수 호출 ID가 저장됐고 GPU 결과를 기다리거나 회수 중 |
 | enriching | 후보·영상 근거가 등록됐고 설명·검색·보고를 처리 중 |
 | completed | 요청 범위 처리·필요 단계가 끝남. 후보 없음, RAG 근거 부족도 정상 종료일 수 있음 |
 | partial | 사용할 결과가 있으나 미분류/미처리 또는 필수 단계 실패가 남음 |
@@ -55,7 +54,7 @@
 요청·응답 예시, 오류 코드, 페이지네이션, 클라이언트 처리 규칙은
 [HTTP API 상세 명세](api-spec-v0.2.md)를 따른다. 이 절은 서비스 경계와 핵심 규칙의 요약이다.
 
-기본 경로 `/api/v1`. 모든 요청은 팀 서비스의 접근 통제 대상이다. UI에서는 DB/S3/Runpod 장기 자격증명을 직접 쓰지 않는다. 초기 Streamlit 서버가 API로 파일을 전송하는 방식을 제안한다. 대용량 직업로드가 필요해지면 별도 업로드 계약을 버전 관리한다.
+기본 경로 `/api/v1`. 모든 요청은 팀 서비스의 접근 통제 대상이다. UI에서는 DB/S3/Modal 장기 자격증명을 직접 쓰지 않는다. 초기 Streamlit 서버가 API로 파일을 전송하는 방식을 제안한다. 대용량 직업로드가 필요해지면 별도 업로드 계약을 버전 관리한다.
 
 | 메서드·경로 | 요청 | 응답·기준 |
 |---|---|---|
@@ -73,25 +72,17 @@
 
 검토 저장 시 expected_review_revision이 현재값과 다르면 409 후 새 기록을 다시 확인하게 한다. 예전 report_revision에 대한 검토는 보존하고 최신 초안에서는 ‘이전 버전 검토’로 표시한다. 별도 검토자 입력만 있는 시연은 인증된 신원으로 표시하지 않는다.
 
-## 4. Runpod GPU Pod 입력·상태·결과 등록
+## 4. Modal GPU 함수 입력·결과 회수
 
-분석 입력 계약: `schema_version`, `job_id`, `run_id`, `source_video_id`, `input_object`(bucket/key/version_id/sha256), `output_prefix`, `analysis_profile`(모델·전처리·판정·후처리 버전, 분석 범위·`analysis_mode=file_realtime_1x`), `requested_at`. 실제 CCTV/RTSP 연결은 시연 범위 밖이다.
+백엔드 작업 프로세스는 DB의 queued run을 찾아 `dispatching`으로 바꾸고 Modal `analyze_video_job`에 `spawn()`으로 제출한다. 반환된 `modal_call_id`를 `runs`에 저장한 뒤 `running`으로 바꾼다. 주기적으로 `FunctionCall.from_id(call_id).get(timeout=0)`으로 완료를 확인한다. 공개 API 요청은 GPU 완료를 기다리지 않는다.
 
-1. Pod의 supervisor가 inference worker를 시작하고 모델·CUDA 준비가 끝난 뒤 BE에 worker 등록과 heartbeat를 보낸다.
-2. worker는 DB/API의 queued run을 lease로 가져와 running으로 전환한다. lease에는 `worker_instance_id`, 만료 시각, attempt를 기록한다.
-3. worker는 업로드 영상을 원본 PTS 순서와 재생속도 1×에 맞춰 읽는다. 현재 재생 PTS보다 미래인 프레임을 판정 입력에 사용하지 않는다. 후보를 발견하면 해당 시점의 클립·프레임을 S3에 저장한 뒤 run이 끝나기 전에도 부분 event를 등록한다.
-4. 마지막 창까지 처리한 뒤 coverage와 최종 manifest를 기록하고 run 완료를 등록한다. 실패·미분류 구간은 후보 없음으로 바꾸지 않는다.
-5. BE는 입력 ID·스키마·해시·실제 파일 존재·영상 범위·모델 버전·창 수·worker를 검증하고 DB 트랜잭션으로 등록한다. 부분 event가 있으면 VLM/RAG 후속 단계를 시작할 수 있다.
+입력은 `schema_version=modal-inference-v1`, `job_id`, `run_id`, `source_video_id`, `input_object={bucket,key,sha256}`, `output_prefix`, `attempt`, `analysis_profile={id,analysis_mode=offline_video}`, `duration_seconds`다. 업로드 원본만 입력으로 사용하고, 가중치 버킷·객체 키·SHA256은 Modal `cctv-s3` Secret에서 읽는다. 실제 CCTV/RTSP 입력과 원본 속도 1× 실시간 분석은 현재 범위 밖이다.
 
-heartbeat에는 `pod_id`, `worker_instance_id`, `status`, `model_versions`, `gpu_memory`, `active_run_id`, `sent_at`을 포함한다. 상태는 `starting`, `ready`, `degraded`, `unhealthy`, `stopping`이다. HTTP 프로세스 생존만으로 ready를 반환하지 않고 CUDA와 모델 로딩 상태를 확인한다.
+Modal 함수는 X3D-S로 후보를 찾고 후보 시각의 원본 한 프레임에 YOLO11s를 실행한다. clip·frame·event manifest·final manifest를 영상 버킷의 run/attempt `output_prefix`에 저장한다. 결과로 event manifest 참조 목록과 final manifest의 경로·SHA256을 반환한다. 임시 컨테이너 디스크는 영구 결과 저장소가 아니다.
 
-파일의 `video_time_seconds`, worker가 해당 프레임을 사용할 수 있게 된 `available_at`, 후보를 등록한 `detected_at`을 구분한다. 실시간 탐지 지연은 전체 파일 완료시간이 아니라 `detected_at - available_at`으로 측정한다. UI 재생시각과 worker 처리 PTS의 허용 오차는 실제 통합 시험 후 확정한다.
+BE는 반환된 모든 경로가 할당된 `output_prefix` 아래인지, S3 객체가 존재하는지, SHA256·MIME·run/event 식별자·원본 영상 시각·coverage 창 개수가 맞는지 검증한 후 DB에 등록한다. `candidate_time_s`는 X3D-S 첫 양성 창의 중간 시각이며 정확한 충돌 시각이 아니다. 후보가 없으면 VLM·RAG를 건너뛴다. Modal 호출 또는 결과 검증이 실패하면 원인 단계와 함께 `failed`로 남기며 사고 없음으로 바꾸지 않는다.
 
-**중복·재시작 규칙:** worker 재시작 또는 네트워크 재전송으로 같은 event/run 결과가 반복될 수 있다. `(run_id, event_id)`와 `(run_id, sequence_number)`, manifest 식별자에 유일성 검사를 두고 한 번만 등록한다. heartbeat가 만료되면 worker를 offline으로 표시하되 이미 저장된 부분 이벤트를 삭제하지 않는다. run lease가 만료되면 S3 manifest와 DB 등록 여부를 확인한 뒤 안전한 checkpoint 또는 처음부터 재처리한다. 뒤늦은 옛 worker 결과가 active run을 덮어쓰지 못하게 한다.
-
-Pod container disk는 임시 decode/cache에만 사용한다. 원본·채택한 근거·manifest는 S3, 영구 상태는 DB에 둔다. [Runpod Pod 저장·요금 정책](https://docs.runpod.io/pods/pricing).
-
-초기 구현은 API와 별도 BE 작업 프로세스+DB 작업 레코드를 제안한다. GPU dispatch/reconcile, VLM, RAG, report 단계마다 lease·시도 수·다음 실행시각·마지막 오류를 기록한다. FastAPI 요청 메모리나 Streamlit 세션만으로 작업을 이어가지 않는다. Redis/Celery는 현재 필수 의존성으로 추가하지 않는다.
+GPU 제출·결과 회수와 Gemini 후처리는 FastAPI 요청과 분리된 BE 작업 프로세스에서 실행한다. 브라우저 세션이나 Modal 호출 핸들만 영구 상태로 사용하지 않고 S3·PostgreSQL에 보존한다. 현재 호출 직후 프로세스 중단 시 call ID 복구와 장기 재시도 정책은 검증·보완이 필요하다.
 
 ## 5. 결과 데이터의 공통 필드
 
@@ -124,7 +115,7 @@ Pod container disk는 임시 decode/cache에만 사용한다. 원본·채택한 
 | video_id/video_filename | 등록한 source_video_id | 파일 이름으로 권한/동일성 판단 금지 |
 | event_id | run 안에서 유일한 event_id | 여러 실행의 event_000 충돌 방지 |
 | events.start_s/end_s | start_seconds/end_seconds | result.json의 병합 구간 사용 |
-| candidate_time_s | candidate_time_s | Runpod 후보 시각. 첫 양성 창의 중간 시각이며 정확한 충돌시각 아님 |
+| candidate_time_s | candidate_time_s | X3D-S 후보 시각. 첫 양성 창의 중간 시각이며 정확한 충돌시각 아님 |
 | available_after_video_time_s | decision_source_time_seconds | 첫 양성 창 끝, 실제 wall-clock 지연과 다름 |
 | candidate_window_s | trigger_window_seconds | 첫 창 범위; 전체 후보 구간으로 대체하지 않음 |
 | x3d_probability_at_trigger | trigger_score | 보정된 사고 확률로 표시하지 않음 |

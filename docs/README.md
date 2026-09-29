@@ -1,6 +1,8 @@
 # 프로젝트 문서
 
-[전체 PRD](../PROJECT_BRIEF.md) → [공통 계약](contracts/service_contract.md) → [Modal 추론 연결 계약](contracts/modal-inference-v1.md) → [역할별 문서](roles/README.md) 순서로 읽습니다. 이전 Runpod 절은 현재 GPU 실행 방식에 적용하지 않습니다.
+[전체 PRD](../PROJECT_BRIEF.md) → [공통 계약](contracts/service_contract.md) → [Modal 추론 연결 계약](contracts/modal-inference-v1.md) → [역할별 문서](roles/README.md) 순서로 읽습니다.
+
+현재 구현 요약은 [README 현재 상태](../README.md#현재-상태), 실행·검증 이력은 [진행 기록](PROGRESS.md)을 참고합니다.
 
 | 문서 | 내용 |
 |---|---|
@@ -12,7 +14,6 @@
 | [가상 응답](contracts/demo-analysis-cases-v0.2.json) | 화면/계약 검토용 사례 8개 |
 | [모델 메타데이터](contracts/received-model-metadata-v0.2.json) | 실제 파일 해시·클래스·정적 설정 확인 |
 | [통합 확인 시나리오](roles/validation.md) | 앞으로 실행할 QA 시나리오 18개 |
-| [현재 상태](current_status.md) | 실제 완료·미확인·다음 작업 |
 | [진행 기록](PROGRESS.md) | 실행·변경 이유·근거·미실행 |
 | [개념 기록](LEARNING_LOG.md) | 설계 선택과 한계 |
 

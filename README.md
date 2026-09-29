@@ -10,13 +10,13 @@
 | 영역 | 상태 |
 | --- | --- |
 | 설계 문서 | PRD, 공통 API·데이터 계약, 역할 문서 6종, 가상 응답 8종 |
-| 화면 (`apps/streamlit/`) | FastAPI 영상 접수·작업 조회·원본/근거 자산·검토 저장 연결. 환경 변수 없이 가상 응답 데모도 가능 |
+| 화면 (`apps/streamlit/`) | FastAPI 영상 접수·작업 조회·원본/근거 자산·검토 저장 연결. 데모는 `APP_MODE=demo`일 때만 사용 |
 | 백엔드 (`services/backend/`) | 공개 API, Modal 비동기 제출·회수, S3 manifest 검증, Gemini 설명 저장. 테스트는 가짜 S3·Modal·Gemini 사용 |
 | 모델 추론 | 인계받은 YOLO11s·X3D-S 코드를 `src/accident_vision/`에 연결. 실제 GPU 로드·추론은 검증 전 |
 | Modal GPU 함수 | `deploy/modal/app.py` 구현. 실제 Modal 계정·S3 가중치로 실행 검증 전 |
 | RAG 문서 저장소 | 미연결. 항상 `insufficient_evidence/corpus_not_configured`로 표시 |
 
-현재까지는 가짜 Modal 응답으로 화면·API 흐름을 확인했습니다. 실제 영상에서의 GPU 추론은 Modal 배포와 S3 가중치 연결 후 검증해야 합니다. 기존 [현재 상태](docs/current_status.md)는 팀원이 관리하는 문서이므로 최신 변경은 [Modal 연결 계약](docs/contracts/modal-inference-v1.md)을 참고하세요.
+현재까지는 가짜 Modal 응답으로 화면·API 흐름을 확인했습니다. 실제 영상에서의 GPU 추론은 Modal 배포와 S3 가중치 연결 후 검증해야 합니다. GPU 입력·출력 기준은 [Modal 연결 계약](docs/contracts/modal-inference-v1.md), 실행 검증 기록은 [진행 기록](docs/PROGRESS.md)을 참고하세요.
 
 ## 동작 방식
 
@@ -95,10 +95,10 @@ uv run --locked --group dev streamlit run apps/streamlit/app.py
 
 ### 3. 백엔드 API 로컬 실행
 
-로컬에서는 PostgreSQL과 S3 테스트 서버로 화면 연결을 확인할 수 있습니다. 실제 S3·Gemini를 쓰는 경우에는 자격 증명이 필요합니다. 전체 순서는 [백엔드 로컬 실행 안내](services/backend/README.md#로컬-postgresql-및-s3-테스트-서버)를 참고하세요.
+로컬에서는 PostgreSQL을 실행하고 실제 S3·Modal·Gemini를 연결해 전체 흐름을 확인합니다. 해당 서비스의 자격 증명이 필요합니다. 전체 순서는 [백엔드 로컬 실행 안내](services/backend/README.md#로컬-postgresql과-실제-s3-연결)를 참고하세요.
 
 1. `ffprobe`(FFmpeg)를 설치합니다.
-2. `.env.example`을 `.env`로 복사해 `APP_API_KEY`, PostgreSQL·S3·Modal 설정을 채웁니다. Gemini 연동 시험 시 `GEMINI_API_KEY`도 설정합니다. 앱은 `.env`를 자동으로 읽지 않습니다.
+2. `.env.example`을 `.env`로 복사해 `APP_API_KEY`, PostgreSQL·실제 S3·Modal·Gemini 설정을 채웁니다. 앱은 `.env`를 자동으로 읽지 않습니다.
 3. 두 터미널에서 각각 환경을 불러와 API와 작업 프로세스를 실행합니다.
 
 ```bash
@@ -111,7 +111,7 @@ set -a; source .env; set +a
 uv run --no-sync python -m services.backend.run_worker
 ```
 
-`http://127.0.0.1:8000/health`로 상태를 확인할 수 있습니다. 공개 API는 `Authorization: Bearer <APP_API_KEY>`를 사용합니다. EC2 서비스 구성은 [Docker Compose 안내](deploy/compose/README.md), Modal 배포·가중치 설정은 [Modal 안내](deploy/modal/README.md), 결과 확인과 Gemini 미리보기는 [백엔드 README](services/backend/README.md)에 있습니다.
+`http://127.0.0.1:8000/health`로 상태를 확인할 수 있습니다. 공개 API는 `Authorization: Bearer <APP_API_KEY>`를 사용합니다. EC2 서비스 구성은 [Docker Compose 안내](deploy/compose/README.md), Modal 배포·가중치 설정은 [Modal 안내](deploy/modal/README.md), 전체 흐름 검증은 [Compose E2E 안내](deploy/compose/README.md#기동과-확인)에 있습니다.
 
 ### 4. 샘플 영상으로 사고 탐지 실행
 
@@ -121,8 +121,8 @@ uv run --no-sync python -m services.backend.run_worker
 
 | 준비물 | 위치 |
 | --- | --- |
-| 가중치 파일과 SHA256 | [`models/`](models/README.md)의 `registry.yaml`, `checksums.sha256` (파일은 S3 등 외부 저장) |
-| 추론 설정 | [`configs/models/`](configs/models/README.md)의 `yolo11s.yaml`, `x3d_s.yaml` |
+| 가중치 파일과 SHA256 | 가중치는 전용 S3 버킷에 저장하고, 객체 키·SHA256은 Modal `cctv-s3` Secret에 설정 ([Modal 안내](deploy/modal/README.md)) |
+| 추론 설정 | [`src/accident_vision/pipeline.py`](src/accident_vision/pipeline.py)와 [`timeline.py`](src/accident_vision/timeline.py)의 현재 설정값 |
 | 실행 진입점 | [`deploy/modal/app.py`](deploy/modal/README.md), [`src/accident_vision/pipeline.py`](src/accident_vision/README.md) |
 | 샘플 영상 | 저장소에 커밋하지 않음 (`*.mp4`는 `.gitignore` 대상) |
 
@@ -134,10 +134,9 @@ YOLO `Dynamic` 클래스의 정의와 화면 표시 정책, X3D-S 임계값 0.5�
 | --- | --- |
 | `apps/streamlit/` | Streamlit 데모 화면 |
 | `services/backend/` | FastAPI 백엔드와 Gemini 작업 프로세스 |
-| `scripts/` | 로컬 확인용 스크립트 (`preview_gemini_rag.py`) |
+| `scripts/` | 실제 업로드부터 Modal·Gemini 결과까지 확인하는 E2E 스크립트 |
 | `src/accident_vision/` | 로컬·Modal 공통 추론 패키지 |
-| `configs/models/` | 모델별 추론 설정 YAML (예정) |
-| `models/` | 가중치 버전 목록과 SHA256 (가중치 자체는 커밋하지 않음) |
+| `deploy/modal/` | 가중치 S3 다운로드·해시 검증과 GPU 추론 배포 코드 |
 | `training/` | YOLO11s·X3D-S 학습 설정과 평가 기록 |
 | `tests/` | `unit/`, `integration/`, `smoke/` 테스트 |
 | `docs/` | 계약, 역할 문서, 요구사항, 진행 기록 |
@@ -149,7 +148,7 @@ YOLO `Dynamic` 클래스의 정의와 화면 표시 정책, X3D-S 임계값 0.5�
 1. [PRD](PROJECT_BRIEF.md): 목표·범위·아키텍처
 2. [공통 API·데이터 계약](docs/contracts/service_contract.md)과 [HTTP API 명세](docs/contracts/api-spec-v0.2.md): 작업 상태·요청/응답·오류·검토 저장
 3. [역할 문서](docs/roles/README.md): FE·BE·모델·VLM/RAG·인프라·QA
-4. [구현 계획](IMPLEMENTATION_PLAN.md)과 [현재 상태](docs/current_status.md)
+4. [구현 계획](IMPLEMENTATION_PLAN.md)과 [진행 기록](docs/PROGRESS.md)
 5. [팀 공유 안내](docs/team_handoff.md): 문서 읽는 순서와 편집 방법
 
 API나 상태 값을 바꿀 때는 역할 문서보다 공통 계약을 먼저 수정합니다. 가중치, 영상, `.env` 같은 비밀 정보는 커밋하지 않습니다.

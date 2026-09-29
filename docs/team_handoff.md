@@ -1,11 +1,11 @@
 # 팀 개발 시작 안내 — 서비스 PRD v0.2
 
-2026-09-27. **현재 설계: Streamlit + FastAPI + S3 + 상시 Runpod GPU Pod + YOLO11s/X3D-S + VLM/RAG + 사람 검토.** 이전 Serverless·Modal 및 수동 Colab/React 구성 제안을 대체한다. 구현·배포 완료 문서는 아니다.
+**현재 설계: Streamlit + FastAPI + S3 + Modal GPU 함수 + YOLO11s/X3D-S + Gemini VLM + 후속 RAG/보고 + 사람 검토.** GPU 함수와 백엔드 코드는 작성됐으며 실제 GPU·S3·Gemini E2E 검증은 아직 전이다.
 
 ## 새로 시작하는 팀원이 읽을 순서
 
 1. [전체 PRD](../PROJECT_BRIEF.md): 무엇을 만들고 어디까지 포함하는지.
-2. [공통 API·데이터 계약](contracts/service_contract.md): 팀 간 연결 규칙.
+2. [공통 API·데이터 계약](contracts/service_contract.md)과 [Modal 연결 계약](contracts/modal-inference-v1.md): 팀 간 연결 규칙.
 3. [역할별 안내](roles/README.md): FE·BE·모델·VLM/RAG·인프라·QA의 담당 문서.
 4. [요구사항](requirements.md), [가상 응답](contracts/demo-analysis-cases-v0.2.json), [통합 확인](roles/validation.md).
 
@@ -25,13 +25,13 @@
 
 ## 이전 그림에서 달라진 점
 
-Runpod GPU Pod는 모델을 상시 로드하고 업로드 영상을 원본 시간순으로 처리한다. S3는 영구 저장소다. X3D-S가 후보 구간을 판별하고 YOLO가 객체 정보를 제공한다. worker는 heartbeat와 부분 event/최종 manifest를 BE에 보내고, BE는 검증 후 VLM/RAG를 진행한다. 사람 검토는 UI→API→DB로 저장한다. GPU 로그와 AWS 로그는 job/run/event/worker ID로 대조한다.
+BE 작업 프로세스가 Modal 함수를 `spawn()`으로 제출하고 `modal_call_id`를 저장한다. 함수는 업로드 MP4를 오프라인으로 분석해 X3D-S 후보와 해당 장면의 YOLO 객체 정보를 만들고 clip·frame·manifest를 S3에 저장한다. BE가 완료 후 S3 결과를 검증해 event를 등록하고 Gemini에 전달한다. RAG/보고는 후속 연결 범위다. 사람 검토는 UI→API→DB로 저장한다. GPU 로그와 AWS 로그는 job/run/event/call ID로 대조한다.
 
 ## 전달 모델 확인
 
 지정된 deployment_handoff의 11개 파일이 동봉 manifest의 크기·SHA256과 일치한다. YOLO는 0 Pedestrian, 1 Car, 2 Truck, 3 Bus, 4 Motorcycle, 5 Bicycle, 6 Dynamic의 **7개 클래스**다. 기존 그림의 6개 표기를 수정했다. Dynamic의 의미·성능·실시간 지연은 미확인이다.
 
-받은 코드도 X3D 후보→후보 시각 한 프레임의 YOLO 순서다. 실제 원본 시각 정합, 근거 클립 추출, S3/Runpod/API 연결은 추가 개발이 필요하다. [모델 접수 근거](contracts/received-model-metadata-v0.2.json)는 모델 실행 없는 정적 확인 결과다.
+받은 코드도 X3D 후보→후보 시각 한 프레임의 YOLO 순서다. 현재 Modal 함수에 근거 클립 추출과 S3 저장 코드를 연결했으며 실제 GPU·S3 통합 검증은 남아 있다. [모델 접수 근거](contracts/received-model-metadata-v0.2.json)는 모델 실행 없는 정적 확인 결과다.
 
 ## GitHub에서 공유·수정하기
 

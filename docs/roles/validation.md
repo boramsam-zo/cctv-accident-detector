@@ -16,20 +16,20 @@
 | QA-08 | VLM timeout/잘못된 JSON | 후보 유지·RAG 생략 이유·부분 보고·partial | VLM·BE·FE |
 | QA-09 | RAG 관련 문서 부족 | insufficient_evidence, 빈 인용, 근거 부족 표시 | RAG·FE |
 | QA-10 | 검색 서비스 장애 | 근거 부족과 다른 failed, 작업 partial | RAG·BE |
-| QA-11 | BE·Pod·worker 재시작·화면 종료 | heartbeat 복구, session 재생성, 브라우저 없어도 실시간 탐지·후속 처리 | BE·인프라 |
-| QA-12 | heartbeat 만료·처리 PTS 정체·worker 재시작 | 오류와 unknown range 기록, 안전한 재처리, 사고 없음 표시 금지 | 모델·BE·인프라 |
-| QA-13 | 중복 event/manifest·옛 worker 지연 도착 | 한 번 등록·active run/기존 검토 보호 | BE·모델 |
+| QA-11 | BE 작업 프로세스 재시작·화면 종료 | 저장된 call ID로 완료 조회, 브라우저 없이 후속 처리 | BE·인프라 |
+| QA-12 | Modal 호출 실패·timeout·제출 직후 중단 | 오류 기록과 안전한 재처리, 사고 없음 표시 금지 | 모델·BE·인프라 |
+| QA-13 | 중복 event/manifest·이전 run 결과 지연 도착 | 한 번 등록·active run/기존 검토 보호 | BE·모델 |
 | QA-14 | 범위/좌표/해시/버전 위반 | 결과 거절·명확한 오류, 허위 completed 없음 | BE·모델 |
 | QA-15 | 두 검토자 동시 저장·보고 개정 | revision 충돌·기존 이력 유지·이전 초안 검토 표시 | FE·BE |
 | QA-16 | 만료 URL·다른 작업 asset 접근 | 재발급 또는 접근 거절, 비밀 미노출 | BE·인프라 |
 | QA-17 | 사실과 무관한 문서/문서 속 지시문 | 근거 없는 인용·명령 수행 없음 | VLM/RAG |
-| QA-18 | 시간·사용량·실패 관측 | job/run/event/worker로 로그 대조·측정 구간/비용 근거 기록 | 전체 |
+| QA-18 | 시간·사용량·실패 관측 | job/run/event/modal_call_id로 로그 대조·측정 구간/비용 근거 기록 | 전체 |
 
 ## 단계별 확인
 
 1. 문서·가상 응답: schema, 필수 상태, 시간/좌표/창 수의 일관성. 실제 영상·서버·모델 품질은 확인하지 않는다.
-2. 로컬 기능 연결: API/DB/화면, 가상 worker, 재시작·중복·검토 저장.
-3. 승인된 한 업로드 영상의 실제 연결: S3→Runpod GPU Pod 시간순 처리→부분 event→최종 결과→VLM/RAG→보고. 관측한 모델/환경/범위를 기록한다.
+2. 로컬 기능 연결: API/DB/화면, 단위·계약 테스트, 재시작·중복·검토 저장.
+3. 승인된 한 업로드 영상의 실제 연결: S3→Modal 오프라인 추론→S3 manifest 검증→Gemini JSON. RAG·보고는 구현 후 별도 확장한다. 관측한 모델/환경/범위를 기록한다.
 4. 품질 평가: 고정된 별도 평가 목록·정답으로 FN/FP·미분류·사건 시간 기준을 측정한다.
 
 ## 품질 평가 원칙
@@ -40,4 +40,4 @@ VLM은 관찰 내용의 근거 일치, RAG는 문서/절의 정답근거 회수�
 
 ## 실제 기록 양식
 
-중앙 `docs/PROGRESS.md`에 날짜, QA-ID, 코드/계약/모델 버전, 실행 명령·환경·입력 목록, 기대/실제 결과, 원본 로그 경로, 통과/실패/미실행, 재현 조건을 남긴다. 최신 요약은 `docs/current_status.md`, 후속 TODO는 `IMPLEMENTATION_PLAN.md`를 갱신한다. 사람의 직접 확인은 답변·검수 기록이 있을 때만 완료로 적는다.
+중앙 `docs/PROGRESS.md`에 날짜, QA-ID, 코드/계약/모델 버전, 실행 명령·환경·입력 목록, 기대/실제 결과, 원본 로그 경로, 통과/실패/미실행, 재현 조건을 남긴다. 최신 요약은 루트 `README.md`의 현재 상태, 후속 TODO는 `IMPLEMENTATION_PLAN.md`를 갱신한다. 사람의 직접 확인은 답변·검수 기록이 있을 때만 완료로 적는다.

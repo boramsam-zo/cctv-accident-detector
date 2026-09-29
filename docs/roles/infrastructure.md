@@ -1,4 +1,4 @@
-# 인프라 — AWS CPU 서비스·S3·Runpod GPU
+# 인프라 — EC2·S3·Modal GPU
 
 기준: [PRD](../../PROJECT_BRIEF.md) · [공통 계약](../contracts/service_contract.md). 사용자는 AWS 예산·크레딧이 없다고 답했고 외부 GPU 사용을 허용하는 설계를 요청했다. **비용 상한·계정·실제 자원은 아직 정하지 않았다.** 이 문서 작성은 유료 자원 생성이나 영상 외부 전송 실행을 뜻하지 않는다.
 
@@ -9,7 +9,7 @@
 | AWS CPU 환경 | Streamlit, FastAPI, BE 작업 프로세스 | 웹/API·worker 상태·event 검증·VLM/RAG 후속 처리 |
 | AWS 비공개 S3 | 원본·클립·프레임·결과 manifest·문서 파일 | 보관·접근·수명 주기 |
 | PostgreSQL | 작업·결과·검토·문서 메타데이터, 필요 시 pgvector | 영구 상태·백업·스키마 변경 |
-| Runpod GPU Pod | 상시 YOLO11s/X3D-S worker container | 업로드 영상 시간순 처리·근거 생성·파일 저장 |
+| Modal GPU 함수 | 작업별 X3D-S/YOLO11s 추론 | 업로드 영상 오프라인 처리·근거 생성·S3 저장 |
 | 외부 VLM/임베딩 | 선택한 API | 비밀 관리·사용량·단계별 오류 |
 
 처음에는 CPU EC2 한 대에 웹/API/작업 프로세스/PostgreSQL을 두는 구성을 비용·운영 비교의 출발점으로 제안한다. 단일 장애 지점이며 고가용성 보장은 없다. 관리형 DB가 필요하면 RDS 등과 별도로 비교한다. 인스턴스 크기·리전·DB 배치·동시 실행 수는 실제 조건 확인 후 정한다. Streamlit은 Python 서버 실행이 필요하므로 정적 SPA 배포 설정을 그대로 재사용하지 않는다.
@@ -17,20 +17,20 @@
 ## 연결과 권한
 
 - S3는 공개 버킷으로 만들지 않는다. 입력 읽기·run별 결과 쓰기·근거 조회를 최소 범위 권한으로 분리한다.
-- AWS의 API/작업 프로세스는 실행 역할을 사용한다. Runpod worker의 S3 접근은 범위 제한 자격증명 또는 단기 자격 방식 중 구현 가능한 것을 선택하고 회전/만료를 다룬다. Runpod API key와 S3 실제 키는 문서·Git·브라우저·event payload로 보내지 않는다.
+- EC2의 API/작업 프로세스는 인스턴스 역할을 사용한다. Modal `cctv-s3` Secret에는 영상·가중치 버킷에 필요한 범위 제한 S3 자격 증명과 모델 키·SHA256을 둔다. Modal 토큰과 S3 실제 키는 문서·Git·브라우저·event payload로 보내지 않는다.
 - FE는 API에서 단기 Asset URL을 받는다. presigned URL은 발급 주체의 권한과 유효기간에 제한되며 같은 key 업로드는 덮어쓸 수 있다. 새 영상/run별 경로를 사용한다. [AWS 공식 설명](https://docs.aws.amazon.com/AmazonS3/latest/userguide/PresignedUrlUploadObject.html).
 - DB는 외부 공개 접속을 기본으로 열지 않는다. 팀 접근 통제·HTTPS·검토자 식별 방식은 시연 배포 전 확정한다.
 - VLM에 보낼 실제 영상 범위·촬영정보·보관 정책을 정한다. 업체 선정 전 모든 원본이 외부 전송됐다고 기록하지 않는다.
 
 ## 로그와 장애 복구
 
-CloudWatch에는 AWS API/작업 프로세스 로그를, Runpod Console에는 GPU worker 로그를 확인한다. job_id/run_id/event_id/worker_instance_id/request_id와 단계·오류코드·처리 PTS·시작/끝을 공통으로 남긴다. Runpod 로그를 CloudWatch에 모으려면 별도 전송 구성이 필요하므로 초기에는 두 화면을 연결 ID로 대조한다.
+CloudWatch에는 AWS API/작업 프로세스 로그를, Modal Dashboard에는 GPU 함수 로그를 확인한다. `job_id/run_id/event_id/modal_call_id/request_id`와 단계·오류코드·시작/끝을 공통으로 남긴다. Modal 로그를 CloudWatch에 모으려면 별도 전송 구성이 필요하므로 초기에는 두 화면을 연결 ID로 대조한다.
 
-S3 파일과 DB 참조의 불일치, BE·Pod·worker 재시작, heartbeat 만료, 처리 PTS 정체, GPU OOM, 디스크 부족, 반복 실패, 외부 API 사용량을 관측한다. 오래된 lease 회수와 manifest 재등록은 공통 계약을 따른다. 백업이 존재하는 것과 복구가 검증된 것은 구분한다.
+S3 파일과 DB 참조의 불일치, BE 작업 프로세스 재시작, Modal 호출 실패·timeout, GPU OOM, 반복 실패, 외부 API 사용량을 관측한다. 제출 직후 `modal_call_id` 저장 전 중단과 결과 회수 실패는 복구 설계가 필요하다. 백업이 존재하는 것과 복구가 검증된 것은 구분한다.
 
 ## 비용·보관 설정
 
-기록할 값: Pod 가동시간, 영상별 처리시간·처리 FPS·원본 FPS 대비 배수, 컨테이너 재시작 수, VLM·임베딩 사용량, S3 저장/요청/전송량, CPU/DB 실행시간. 무료 또는 0원이라고 가정하지 않는다. 예산 알림은 소비를 자동 차단하는 서비스 로직과 구분한다.
+기록할 값: Modal GPU 함수 실행시간·호출 수, 영상별 대기/추론/저장 시간, VLM·임베딩 사용량, S3 저장/요청/전송량, EC2/DB 실행시간. 무료 또는 0원이라고 가정하지 않는다. 예산 알림은 소비를 자동 차단하는 서비스 로직과 구분한다.
 
 배포 전 최대 파일 크기·영상 길이·동시 작업 수·실행 timeout·재시도 상한·사용량 한도·원본/파생/로그 보관 기간을 설정한다. 기본 제안은 GPU 동시 1이며 나머지 수치는 미정이다. 자동 삭제는 보관·평가 증거 보호 기준을 확정한 뒤 적용한다.
 
