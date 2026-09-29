@@ -21,6 +21,7 @@ DEMO_JOB_IDS = (
 
 class StreamlitAppSmokeTest(unittest.TestCase):
     def test_all_demo_states_render_without_exception(self) -> None:
+        """모든 데모 작업 상태가 Streamlit 화면에서 예외 없이 렌더링되는지 확인한다."""
         app = AppTest.from_file(str(APP_PATH))
         app.session_state["current_page"] = "analysis"
         app.run(timeout=20)
@@ -33,6 +34,7 @@ class StreamlitAppSmokeTest(unittest.TestCase):
                 self.assertEqual([], list(app.exception))
 
     def test_five_uploaded_video_cards_render(self) -> None:
+        """업로드된 영상 다섯 개가 각각 카드로 렌더링되는지 확인한다."""
         app = AppTest.from_file(str(APP_PATH))
         app.session_state["current_page"] = "intake"
         app.session_state["uploaded_videos"] = [
