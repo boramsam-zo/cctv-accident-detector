@@ -11,7 +11,11 @@ x-app-common: &app-common
     APP_API_KEY: ${APP_API_KEY:?Set APP_API_KEY in .env}
     S3_BUCKET: ${S3_BUCKET:?Set the video bucket in .env}
     S3_KEY_PREFIX: ${S3_KEY_PREFIX:?Set the development S3 prefix in .env}
+    S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-}
     AWS_REGION: ${AWS_REGION:-ap-northeast-2}
+    AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+    AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+    AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
     MODAL_ENVIRONMENT: ${MODAL_ENVIRONMENT:-dev}
     MODAL_APP_NAME: ${MODAL_APP_NAME:-cctv-accident-inference}
     MODAL_FUNCTION_NAME: ${MODAL_FUNCTION_NAME:-analyze_video_job}

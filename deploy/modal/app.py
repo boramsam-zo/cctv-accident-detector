@@ -9,8 +9,8 @@ image = (
     .pip_install("torch", "torchvision", "numpy<2", "opencv-python-headless",
                  "ultralytics", "pytorchvideo", "fvcore", "iopath", "av",
                  "parameterized", "networkx", "boto3")
-    .add_local_dir("src/accident_vision", remote_path="/root/accident_vision")
     .env({"PYTHONPATH": "/root"})
+    .add_local_dir("src/accident_vision", remote_path="/root/accident_vision")
 )
 app = modal.App("cctv-accident-inference")
 
