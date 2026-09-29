@@ -1,6 +1,6 @@
 # 프로젝트 폴더 구조
 
-상태: 기본 폴더 생성 완료 · 서비스 상세는 PRD v0.2 개발 제안
+상태: Modal GPU·EC2 개발용 Compose/Terraform 코드 추가 · 실제 클라우드 검증 전
 적용 범위: 팀 공용 모노레포 초기 구성
 
 ## 최신 개발 문서
@@ -11,36 +11,35 @@
 
 ```text
 Streamlit → EC2 백엔드 → S3 원본 영상 저장
-→ Runpod GPU Pod가 업로드 영상을 원본 시간순으로 처리
-→ Pod worker: X3D-S 후보 구간 → 후보 장면의 YOLO11s 객체 정보
-→ S3 분석 영상·대표 프레임·JSON 저장
-→ EC2 백엔드에서 외부 VLM API 호출 → RAG 검색
-→ DB 작업 상태·리포트 저장 → Streamlit 결과 표시
+→ 백엔드 작업 프로세스가 Modal GPU 함수를 비동기 제출
+→ Modal: X3D-S 후보 구간 → 후보 장면의 YOLO11s 객체 정보
+→ S3 후보 clip·대표 frame·manifest 저장
+→ EC2 작업 프로세스에서 Gemini VLM 호출
+→ PostgreSQL에 작업 상태·Gemini 구조화 JSON 저장 → Streamlit 결과 표시
 ```
 
-초기 구성에서는 SQS와 DLQ를 사용하지 않습니다. Runpod GPU Pod의 상시 worker가 heartbeat를 보내고 업로드 영상 작업을 DB lease로 가져가며, 처리 중 event를 BE에 부분 등록합니다. 작업·이벤트 상태는 DB에 영속 저장합니다.
+초기 구성에서는 SQS와 DLQ를 사용하지 않습니다. 백엔드 작업 프로세스가 Modal의 `spawn()`으로 분석을 제출하고 `modal_call_id`를 DB에 저장합니다. 결과는 S3와 DB에 영속 저장합니다. RAG 검색과 최종 LLM 보고서는 다음 단계입니다.
 
 ## 초기 배포 단위
 
 ```text
 EC2
-├── Streamlit
+├── PostgreSQL (Compose 볼륨)
 ├── FastAPI 백엔드
-└── BE 작업 프로세스 (제출·회수·VLM/RAG 후속 처리)
+├── BE 작업 프로세스 (Modal 제출·회수·Gemini 후속 처리)
+└── Streamlit
 
-Runpod GPU Pod
-├── supervisor / health API
-├── video decoder / chronological frame buffer
-├── X3D-S·YOLO11s inference worker
-└── S3 uploader / event client
+Modal GPU 함수
+├── 영상 버킷에서 원본, 모델 버킷에서 가중치 로드
+├── X3D-S·YOLO11s 오프라인 추론
+└── 영상 버킷에 clip·frame·manifest 저장
 
 AWS
-├── S3
-├── PostgreSQL (로컬 연결·마이그레이션 확인, 배포 위치 미정)
+├── S3 영상 버킷·모델 버킷
 └── CloudWatch
 ```
 
-처음에는 Streamlit과 백엔드를 같은 EC2 인스턴스에서 실행합니다. Streamlit은 백엔드 API를 통해 업로드와 분석을 요청하며, GPU 추론은 상시 Runpod GPU Pod에서 실행합니다. Pod supervisor·재시작·영상 처리 pacing은 배포 전에 확정합니다.
+처음에는 Streamlit과 백엔드를 같은 EC2 인스턴스에서 실행합니다. Streamlit은 백엔드 API를 통해 업로드와 분석을 요청하며, GPU 추론은 Modal에서 실행합니다. 현재 모델 코드는 파일 전체를 오프라인으로 분석합니다.
 
 ## 현재 구조와 모델·학습 기본 구조
 
@@ -55,6 +54,7 @@ AWS
 │   └── README.md
 ├── services/backend/
 │   ├── app.py
+│   ├── modal_service.py
 │   ├── models.py
 │   ├── db.py
 │   └── README.md
@@ -63,6 +63,20 @@ AWS
 │   └── versions/
 ├── src/accident_vision/
 │   ├── __init__.py
+│   ├── pipeline.py
+│   ├── timeline.py
+│   └── README.md
+├── deploy/modal/
+│   ├── app.py
+│   ├── requirements.txt
+│   └── README.md
+├── deploy/compose/
+│   ├── Dockerfile.app
+│   ├── compose.yaml
+│   └── README.md
+├── deploy/terraform/dev-ec2/
+│   ├── main.tf
+│   ├── user_data.sh
 │   └── README.md
 ├── configs/models/
 │   └── README.md
@@ -80,17 +94,20 @@ AWS
     └── README.md
 ```
 
-위 트리는 주요 파일과 모델·학습 기본 구조를 함께 보여줍니다. Streamlit은 FastAPI 공개 API로 영상 접수·작업 조회·근거 재생·검토 저장을 수행합니다. PostgreSQL 스키마는 Alembic 마이그레이션으로 관리합니다. 현재 추가된 PRD와 역할·계약·기록 문서는 [문서 목록](README.md)을 참고하세요. 인계할 모델 코드·테스트·노트북은 검토 후 기존 책임에 맞게 연결합니다.
+위 트리는 주요 파일과 모델·학습 기본 구조를 함께 보여줍니다. Streamlit은 FastAPI 공개 API로 영상 접수·작업 조회·근거 재생·검토 저장을 수행합니다. PostgreSQL 스키마는 Alembic 마이그레이션으로 관리합니다. 모델 코드의 실제 GPU 실행은 Modal에서 검증해야 합니다.
 
 ## 폴더 책임
 
 | 위치 | 책임 |
 | --- | --- |
-| `apps/streamlit/` | 사용자 화면과 FastAPI 클라이언트. Runpod·S3·DB 직접 접근 없음 |
-| `services/backend/` | 공개 API, Runpod 내부 계약, S3 영상 접근, Gemini 후속 처리 |
+| `apps/streamlit/` | 사용자 화면과 FastAPI 클라이언트. Modal·S3·DB 직접 접근 없음 |
+| `services/backend/` | 공개 API, Modal 제출·결과 검증, S3 영상 접근, Gemini 후속 처리 |
 | `migrations/` | PostgreSQL 스키마 버전 관리 |
 | `docker-compose.local.yml` | 로컬 PostgreSQL 실행 |
-| `src/accident_vision/` | 로컬과 Runpod worker가 함께 사용하는 객체 탐지, 충돌 의심 탐지, 영상 파이프라인 및 추론 계약 |
+| `deploy/compose/` | EC2 개발용 PostgreSQL·FastAPI·worker·Streamlit 기동 |
+| `deploy/terraform/dev-ec2/` | 개발용 EC2, IAM, SSM 접속, Docker·Compose 설치 |
+| `src/accident_vision/` | 로컬과 Modal 함수가 함께 사용하는 객체 탐지, 충돌 의심 탐지, 영상 파이프라인 |
+| `deploy/modal/` | Modal GPU 함수 배포 진입점과 S3 결과 저장 |
 | `configs/models/` | 모델별 설정 |
 | `models/` | 가중치 버전과 SHA256 검증 정보 |
 | `training/object_detection/` | YOLO11s 학습 및 평가 자료 |
@@ -100,11 +117,12 @@ AWS
 
 ## 폴더별 추천 파일
 
-아래 경로는 각 폴더 README의 추천 목록입니다. 실제 파일은 모델 자산 또는 계약이 확정될 때 추가합니다.
+아래 경로는 각 폴더 README의 향후 분리 추천 목록입니다. 현재 공통 추론 구현은 `src/accident_vision/pipeline.py`와 `timeline.py`에 있습니다.
 
 | 폴더 | 추천 파일 | 내용 |
 | --- | --- | --- |
 | `src/accident_vision/` | `schemas.py` | 영상 분석 요청·탐지 결과·사고 의심 이벤트 계약 |
+| `src/accident_vision/` | `pipeline.py`, `timeline.py` | 현재 X3D-S·YOLO11s MP4 추론과 후보 구간 묶음 |
 | `src/accident_vision/` | `detection/loader.py`, `detection/predict.py`, `detection/preprocessing.py`, `detection/visualize.py` | YOLO11s 로드·추론·전처리·시각화 |
 | `src/accident_vision/` | `collision/loader.py`, `collision/predict.py`, `collision/preprocessing.py`, `collision/postprocessing.py` | X3D-S 로드·추론·클립 전처리·점수 후처리 |
 | `src/accident_vision/` | `pipeline/analyze_video.py`, `pipeline/event_grouping.py`, `pipeline/result_builder.py` | 공통 영상 추론·의심 구간 묶음·결과 JSON 생성 |
@@ -122,8 +140,6 @@ AWS
 
 | 폴더 | 생성 조건 |
 | --- | --- |
-| `deploy/runpod/` | Runpod Pod template·container image·supervisor·가중치·worker 코드 인계 완료 |
-| `deploy/ec2/` | EC2 인스턴스·프로세스 실행·접속 방식 확정 |
 | `rag/` | 문서 출처·임베딩·저장소 확정 |
 
 ## 초기 구현 순서
@@ -131,7 +147,7 @@ AWS
 1. 모델 가중치와 설정 인계 및 SHA256 확인
 2. 코드·설정을 로컬에서 준비하고 승인한 GPU 환경에서 공통 추론 확인
 3. 공통 계약 초안 검토·가상 응답으로 FE/BE 착수 (모델 연결과 병행 가능)
-4. Runpod worker에서 같은 추론 코드 실행
+4. Modal GPU 함수에서 같은 추론 코드 실행
 5. S3 입력·결과 저장 연결
 6. EC2 백엔드의 분석 제출·상태 조회 구현
 7. Streamlit과 백엔드 연결

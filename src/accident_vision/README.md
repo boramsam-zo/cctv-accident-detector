@@ -1,6 +1,6 @@
 # 공통 영상 추론 패키지
 
-로컬 실행과 Runpod GPU worker에서 같은 코드를 import하는 운영 추론 패키지입니다.
+로컬 실행과 Modal GPU 함수에서 같은 코드를 import하는 운영 추론 패키지입니다. 현재 `pipeline.py`와 `timeline.py`는 인계받은 X3D-S·YOLO11s 오프라인 MP4 추론 코드입니다. 모델 가중치는 S3에서 받으며 Git에 넣지 않습니다.
 
 ## 추천 파일
 
@@ -15,4 +15,4 @@
 | `pipeline/event_grouping.py`, `result_builder.py` | 연속 의심 구간 묶음과 결과 JSON 생성 |
 | `io/video_file.py`, `s3_video.py` | 로컬 영상과 S3 영상 입력 처리 |
 
-모델 코드와 추론 계약이 정해질 때 해당 파일을 추가합니다. 학습 노트북과 Colab 전용 코드는 이 패키지에서 import하지 않습니다.
+나머지 추천 파일은 기능을 분리할 때 추가합니다. 학습 노트북과 Colab 전용 코드는 이 패키지에서 import하지 않습니다.

@@ -4,7 +4,7 @@
 
 ## 읽기 순서
 
-1. [전체 PRD](../../PROJECT_BRIEF.md): 목표·범위·최신 구조.
+1. [전체 PRD](../../PROJECT_BRIEF.md): 목표·범위의 이전 설계 기록. GPU 실행은 현재 [Modal 계약](../contracts/modal-inference-v1.md)을 따른다.
 2. [공통 API·데이터 계약](../contracts/service_contract.md): 필드·상태·버전·오류.
 3. 자기 영역 문서와 연결할 상대 영역 문서.
 4. [요구사항](../requirements.md), [통합 확인 시나리오](validation.md).
@@ -13,7 +13,7 @@
 |---|---|---|
 | FE | [frontend.md](frontend.md) | Streamlit 사용자 흐름·상태 표시·API 연결 |
 | BE | [backend.md](backend.md) | FastAPI·DB·작업 제출/회수·검토 저장 |
-| 모델 | [model.md](model.md) | YOLO11s/X3D-S 입출력·근거 생성·Runpod worker |
+| 모델 | [model.md](model.md) | YOLO11s/X3D-S 입출력·Modal 근거 생성 |
 | VLM/RAG | [vlm_rag.md](vlm_rag.md) | 장면 설명·문서 검색·출처·보고 초안 |
 | 인프라 | [infrastructure.md](infrastructure.md) | 배포 위치·권한·비용·보관·관측 |
 | QA·통합 | [validation.md](validation.md) | 실제 인수 기록·누락/중복/복구·품질 구분 |

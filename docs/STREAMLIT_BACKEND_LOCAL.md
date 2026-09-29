@@ -26,4 +26,4 @@ uv run --locked --group dev streamlit run apps/streamlit/app.py --server.address
 | 검토 저장·조회 | `POST/GET /api/v1/events/{event_id}/reviews` |
 | 완료 작업 재분석 | `POST /api/v1/jobs/{job_id}/runs` |
 
-처리 중에는 5초 간격으로 상태를 조회하고 terminal 상태에서 자동 조회를 중단한다. Runpod worker가 없으면 새 작업은 `queued`에 머문다. 후보·검토 화면은 worker가 후보 이벤트를 등록한 뒤 확인할 수 있다. RAG 문서 검색은 아직 연결되지 않았다.
+처리 중에는 5초 간격으로 상태를 조회하고 terminal 상태에서 자동 조회를 중단한다. Modal 앱과 별도 백엔드 작업 프로세스가 실행되지 않으면 새 작업은 `queued`에 머문다. 실제 Modal 통합 시험에는 원격 함수가 접근할 수 있는 AWS S3가 필요하다. 후보·검토 화면은 Modal 결과가 DB에 등록된 뒤 확인할 수 있다. RAG 문서 검색은 아직 연결되지 않았다.

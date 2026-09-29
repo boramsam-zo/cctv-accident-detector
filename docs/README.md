@@ -1,6 +1,6 @@
 # 프로젝트 문서
 
-[전체 PRD](../PROJECT_BRIEF.md) → [공통 계약](contracts/service_contract.md) → [역할별 문서](roles/README.md) 순서로 읽습니다.
+[전체 PRD](../PROJECT_BRIEF.md) → [공통 계약](contracts/service_contract.md) → [Modal 추론 연결 계약](contracts/modal-inference-v1.md) → [역할별 문서](roles/README.md) 순서로 읽습니다. 이전 Runpod 절은 현재 GPU 실행 방식에 적용하지 않습니다.
 
 | 문서 | 내용 |
 |---|---|
@@ -8,6 +8,7 @@
 | [팀 공유·편집 안내](team_handoff.md) | 팀원 읽기 순서·역할 사이 변경 방법 |
 | [요구사항](requirements.md) | 기능과 인수 기준 |
 | [공통 계약](contracts/service_contract.md) | API·추론 입력/출력·상태·오류·검토 |
+| [Modal 추론 연결 계약](contracts/modal-inference-v1.md) | 비동기 GPU 제출·S3 결과 회수 |
 | [가상 응답](contracts/demo-analysis-cases-v0.2.json) | 화면/계약 검토용 사례 8개 |
 | [모델 메타데이터](contracts/received-model-metadata-v0.2.json) | 실제 파일 해시·클래스·정적 설정 확인 |
 | [통합 확인 시나리오](roles/validation.md) | 앞으로 실행할 QA 시나리오 18개 |

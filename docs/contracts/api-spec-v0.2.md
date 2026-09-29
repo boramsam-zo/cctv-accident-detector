@@ -1,5 +1,7 @@
 # CCTV 사고 의심 분석 API 명세서 — v0.2
 
+> GPU 내부 연결은 [Modal 추론 연결 계약](modal-inference-v1.md)이 우선합니다. 이 문서의 Runpod Pod 등록·heartbeat·claim 절은 이전 계약이며, 공개 `/api/v1` 영상·작업·근거·검토 응답은 유지합니다.
+
 작성일: 2026-09-27
 
 상태: 개발 착수용 계약. FastAPI 로컬 구현 진행 중; Pod GPU worker는 미구현
