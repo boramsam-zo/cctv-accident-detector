@@ -20,10 +20,35 @@ data "aws_iam_policy_document" "ec2_assume_role" {
 
 data "aws_iam_policy_document" "video_s3" {
   statement {
-    sid       = "ReadWriteOnlyDevVideoObjects"
+    sid    = "ReadWriteApplicationAndMlflowObjects"
+    effect = "Allow"
+    actions = [
+      "s3:GetObject",
+      "s3:PutObject",
+      "s3:DeleteObject",
+      "s3:AbortMultipartUpload",
+      "s3:ListMultipartUploadParts",
+    ]
+    resources = [
+      "arn:aws:s3:::${var.video_bucket_name}/${var.video_key_prefix}*",
+      "arn:aws:s3:::${var.video_bucket_name}/${var.mlflow_artifact_prefix}*",
+    ]
+  }
+
+  statement {
+    sid       = "ListApplicationAndMlflowPrefixes"
     effect    = "Allow"
-    actions   = ["s3:GetObject", "s3:PutObject"]
-    resources = ["arn:aws:s3:::${var.video_bucket_name}/${var.video_key_prefix}*"]
+    actions   = ["s3:ListBucket"]
+    resources = ["arn:aws:s3:::${var.video_bucket_name}"]
+
+    condition {
+      test     = "StringLike"
+      variable = "s3:prefix"
+      values = [
+        "${var.video_key_prefix}*",
+        "${var.mlflow_artifact_prefix}*",
+      ]
+    }
   }
 }
 

@@ -40,6 +40,63 @@ services:
       retries: 20
     restart: unless-stopped
 
+  mlflow-db-init:
+    image: pgvector/pgvector:pg17
+    profiles: ["mlflow"]
+    environment:
+      PGHOST: postgres
+      PGUSER: cctv
+      PGPASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      PGDATABASE: cctv
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        if [ "$$(psql -tAc "SELECT 1 FROM pg_database WHERE datname='mlflow'")" != "1" ]; then
+          psql -v ON_ERROR_STOP=1 -c "CREATE DATABASE mlflow"
+        fi
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  mlflow:
+    build:
+      context: ../..
+      dockerfile: deploy/mlflow/Dockerfile
+      args:
+        MLFLOW_VERSION: ${MLFLOW_VERSION:-v3.16.1}
+    image: cctv-accident-mlflow:${MLFLOW_VERSION:-v3.16.1}
+    profiles: ["mlflow"]
+    init: true
+    environment:
+      AWS_REGION: ${AWS_REGION:-ap-northeast-2}
+      AWS_DEFAULT_REGION: ${AWS_REGION:-ap-northeast-2}
+    command:
+      - mlflow
+      - server
+      - --host
+      - 0.0.0.0
+      - --port
+      - "5000"
+      - --backend-store-uri
+      - postgresql+psycopg2://cctv:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/mlflow
+      - --artifacts-destination
+      - s3://${S3_BUCKET:?Set the video bucket in .env}/${MLFLOW_ARTIFACT_PREFIX:?Set MLFLOW_ARTIFACT_PREFIX in .env}
+      - --allowed-hosts
+      - ${MLFLOW_ALLOWED_HOSTS:-localhost:*,127.0.0.1:*,mlflow:5000}
+    depends_on:
+      mlflow-db-init:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:5000:5000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
   migrate:
     <<: *app-common
     command: ["alembic", "upgrade", "head"]
