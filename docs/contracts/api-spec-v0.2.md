@@ -542,8 +542,6 @@ Streamlit은 terminal 상태(`completed`, `partial`, `failed`)에서 자동 조�
 
 Modal 호출은 Streamlit이 사용하는 HTTP API가 아니다. BE 작업 프로세스가 queued run을 `spawn()`으로 제출하고 `modal_call_id`를 DB에 저장한다. 완료는 같은 프로세스가 호출 ID로 조회한다. 함수는 업로드 원본과 가중치를 S3에서 읽고 event/final manifest 및 clip·frame을 S3에 저장한다. BE는 결과 경로·SHA256·시각·coverage를 검증한 후 `GET /jobs/{job_id}` 응답에 후보와 상태를 반영한다. 함수 입력·출력과 실패 규칙은 [Modal 추론 연결 계약](modal-inference-v1.md)에 정의한다.
 
-기존 `/internal/v1/workers/*`와 `/internal/v1/runs/*` 호환 경로는 현재 GPU 실행 흐름에서 사용하지 않는다. 새 화면 또는 Modal 함수에서 호출하지 않는다.
-
 ## 11. 확정이 필요한 항목
 
 아래 항목은 API 구현 전에 제품·인프라·모델 담당자가 결정해야 한다.

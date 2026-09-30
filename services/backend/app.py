@@ -17,7 +17,7 @@ from .db import make_session_factory
 from .gemini_vlm import GeminiVLM
 from .models import Asset, Event, Idempotency, Job, Review, Run, Video
 from .modal_service import ModalGateway, ModalWorker
-from .pod import PodCoordinator, initial_result
+from .result_state import initial_result
 from .settings import Settings
 from .storage import S3Storage
 from .video_probe import probe_mp4
@@ -39,40 +39,6 @@ class ReviewRequest(BaseModel):
     decision: str
     note: str = ""
     expected_review_revision: int = Field(ge=0)
-
-
-class WorkerRegistration(BaseModel):
-    pod_id: str
-    worker_instance_id: str
-    started_at: datetime
-    models: dict
-
-
-class WorkerHeartbeat(BaseModel):
-    status: str
-    gpu_memory_used_bytes: int | None = None
-    active_run_id: str | None = None
-    processed_pts: float | None = None
-    sent_at: datetime
-
-
-class EventRegistration(BaseModel):
-    schema_version: str
-    event_id: str
-    sequence_number: int = Field(ge=0)
-    worker_instance_id: str
-    start_seconds: float
-    end_seconds: float
-    candidate_time_s: float = Field(ge=0)
-    manifest_key: str
-    manifest_sha256: str
-    detected_at: datetime
-
-
-class RunCompletion(BaseModel):
-    worker_instance_id: str
-    manifest_key: str
-    manifest_sha256: str
 
 
 def _id(prefix: str) -> str:
@@ -165,12 +131,6 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
         # This identity is only suitable for restricted team demos, not public user authentication.
         return x_actor_id or "team-demo"
 
-    def pod_auth(authorization: str | None = Header(default=None)) -> None:
-        """Runpod 내부 API의 worker 토큰을 확인한다."""
-        token = authorization.removeprefix("Bearer ") if authorization else ""
-        if not settings.pod_worker_token or not hmac.compare_digest(token, settings.pod_worker_token):
-            raise _error(401, "AUTHENTICATION_REQUIRED", "Valid Pod token required")
-
     def get_storage():
         """주입된 저장소를 사용하거나 S3 클라이언트를 지연 생성한다."""
         if app.state.storage is None:
@@ -194,10 +154,6 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
                            settings.s3_key_prefix)
 
     app.state.get_modal_worker = get_modal_worker
-
-    def coordinator():
-        """Runpod 작업 조정 서비스를 현재 의존성으로 구성한다."""
-        return PodCoordinator(sessions, get_storage(), settings)
 
     def video_payload(video: Video, *, include_hash: bool = False) -> dict:
         """영상 DB 행을 공개 API의 영상 응답 형식으로 변환한다."""
@@ -445,31 +401,5 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
                                "report_revision": r.report_revision, "decision": r.decision,
                                "note": r.note or None, "reviewed_at": r.created_at} for r in rows[:limit]],
                     "next_cursor": _cursor(rows[limit - 1]) if len(rows) > limit else None}
-
-    @app.post("/internal/v1/workers/register", status_code=201)
-    def register_worker(req: WorkerRegistration, _: None = Depends(pod_auth)):
-        """Runpod worker 인스턴스와 모델 정보를 등록한다."""
-        return pod_call(coordinator().register, req.model_dump())
-
-    @app.post("/internal/v1/workers/{worker_id}/heartbeat")
-    def worker_heartbeat(worker_id: str, req: WorkerHeartbeat, _: None = Depends(pod_auth)):
-        """Runpod worker의 상태와 실행 진행 시각을 갱신한다."""
-        return pod_call(coordinator().heartbeat, worker_id, req.model_dump())
-
-    @app.post("/internal/v1/workers/{worker_id}/claim")
-    def claim_run(worker_id: str, _: None = Depends(pod_auth)):
-        """대기 중인 실행 하나를 worker에 할당한다."""
-        assignment = pod_call(coordinator().claim, worker_id)
-        return {"assignment": assignment}
-
-    @app.post("/internal/v1/runs/{run_id}/events", status_code=201)
-    def register_event(run_id: str, req: EventRegistration, _: None = Depends(pod_auth)):
-        """Runpod의 사고 후보 이벤트와 S3 근거를 검증해 등록한다."""
-        return pod_call(coordinator().event, run_id, req.model_dump())
-
-    @app.post("/internal/v1/runs/{run_id}/complete")
-    def complete_run(run_id: str, req: RunCompletion, _: None = Depends(pod_auth)):
-        """Runpod 최종 manifest를 검증하고 분석 실행 상태를 확정한다."""
-        return pod_call(coordinator().complete, run_id, req.model_dump())
 
     return app

@@ -27,18 +27,6 @@ def upgrade() -> None:
     sa.Column('response', sa.JSON(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_table('pod_workers',
-    sa.Column('id', sa.String(length=120), nullable=False),
-    sa.Column('pod_id', sa.String(length=120), nullable=False),
-    sa.Column('status', sa.String(length=30), nullable=False),
-    sa.Column('models', sa.JSON(), nullable=False),
-    sa.Column('active_run_id', sa.String(length=80), nullable=True),
-    sa.Column('processed_pts', sa.Double(), nullable=True),
-    sa.Column('gpu_memory_used_bytes', sa.Integer(), nullable=True),
-    sa.Column('started_at', sa.DateTime(timezone=True), nullable=False),
-    sa.Column('last_heartbeat_at', sa.DateTime(timezone=True), nullable=False),
-    sa.PrimaryKeyConstraint('id')
-    )
     op.create_table('videos',
     sa.Column('id', sa.String(length=80), nullable=False),
     sa.Column('filename', sa.String(length=255), nullable=False),
@@ -67,14 +55,10 @@ def upgrade() -> None:
     sa.Column('profile_id', sa.String(length=120), nullable=False),
     sa.Column('status', sa.String(length=30), nullable=False),
     sa.Column('outcome', sa.String(length=30), nullable=False),
-    sa.Column('pod_id', sa.String(length=120), nullable=True),
-    sa.Column('worker_instance_id', sa.String(length=120), nullable=True),
-    sa.Column('processed_pts', sa.Double(), nullable=True),
     sa.Column('attempt', sa.Integer(), nullable=False),
     sa.Column('manifest_key', sa.String(length=512), nullable=True),
     sa.Column('result', sa.JSON(), nullable=True),
     sa.Column('error', sa.JSON(), nullable=True),
-    sa.Column('lease_until', sa.DateTime(timezone=True), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
     sa.ForeignKeyConstraint(['job_id'], ['jobs.id'], ),
@@ -137,6 +121,5 @@ def downgrade() -> None:
     op.drop_table('runs')
     op.drop_table('jobs')
     op.drop_table('videos')
-    op.drop_table('pod_workers')
     op.drop_table('idempotency')
     # ### end Alembic commands ###

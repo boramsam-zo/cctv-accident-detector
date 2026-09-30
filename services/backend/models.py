@@ -41,14 +41,10 @@ class Run(Base):
     status: Mapped[str] = mapped_column(String(30), default="queued")
     outcome: Mapped[str] = mapped_column(String(30), default="pending")
     modal_call_id: Mapped[str | None] = mapped_column(String(120))
-    pod_id: Mapped[str | None] = mapped_column(String(120))
-    worker_instance_id: Mapped[str | None] = mapped_column(String(120))
-    processed_pts: Mapped[float | None]
     attempt: Mapped[int] = mapped_column(Integer, default=0)
     manifest_key: Mapped[str | None] = mapped_column(String(512))
     result: Mapped[dict | None] = mapped_column(JSON)
     error: Mapped[dict | None] = mapped_column(JSON)
-    lease_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, onupdate=now)
 
@@ -72,19 +68,6 @@ class Event(Base):
     manifest_key: Mapped[str] = mapped_column(String(512))
     manifest_sha256: Mapped[str] = mapped_column(String(64))
     data: Mapped[dict] = mapped_column(JSON)
-
-
-class PodWorker(Base):
-    __tablename__ = "pod_workers"
-    id: Mapped[str] = mapped_column(String(120), primary_key=True)
-    pod_id: Mapped[str] = mapped_column(String(120))
-    status: Mapped[str] = mapped_column(String(30))
-    models: Mapped[dict] = mapped_column(JSON)
-    active_run_id: Mapped[str | None] = mapped_column(String(80))
-    processed_pts: Mapped[float | None]
-    gpu_memory_used_bytes: Mapped[int | None]
-    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    last_heartbeat_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
 
 class Report(Base):
