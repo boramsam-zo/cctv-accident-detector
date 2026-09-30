@@ -7,7 +7,9 @@ from unittest.mock import Mock
 import pytest
 from pydantic import ValidationError
 
-from services.backend.gemini_vlm import GeminiResult, GeminiVLM
+from services.backend.gemini_vlm import (
+    PROMPT2, PROMPT_PRESETS, PROMPT_VERSION1, GeminiResult, GeminiVLM,
+)
 
 
 def response_data(**changes):
@@ -36,12 +38,12 @@ def make_vlm(payload):
 
 
 def event():
-    """Runpod이 제공한 후보 이벤트 메타데이터를 만든다."""
+    """Modal 추론이 제공한 후보 이벤트 메타데이터를 만든다."""
     return {"event_id": "event-1", "candidate_time_s": 4.0,
             "start_seconds": 3.0, "end_seconds": 5.0, "object_observations": []}
 
 
-def test_sdk_receives_structured_schema_and_rag_keeps_runpod_metadata():
+def test_sdk_receives_structured_schema_and_rag_keeps_candidate_metadata():
     """SDK 요청 스키마와 RAG 입력의 원본 후보 시각·ID 보존을 확인한다."""
     vlm, client = make_vlm(response_data())
 
@@ -53,17 +55,76 @@ def test_sdk_receives_structured_schema_and_rag_keeps_runpod_metadata():
     assert "candidate_time_s=4.0" in request["contents"][0]
     assert "Pedestrian, Car, Truck, Bus, Motorcycle, Bicycle, Dynamic" in request["contents"][0]
     assert "rear-end, head-on, sideswipe, t-bone, single" in request["contents"][0]
-    assert "clear, sunset, night, wet, rain" in request["contents"][0]
+    assert "clear, cloudy, rain, snow, fog" in request["contents"][0]
     assert len(request["contents"]) == 2
     assert result["rag_input"]["event_id"] == "event-1"
     assert result["rag_input"]["candidate_time_s"] == 4.0
     assert result["rag_input"]["operator_confirmed"] is None
     assert "camera_id" not in result["rag_input"]
+    assert result["raw_output"]["description"] == response_data()["description"]
+    assert result["request"]["model"] == "test-model"
+    assert result["request"]["media_asset_ids"] == ["frame-1"]
+
+
+def test_model_connection_check_requires_nonempty_response():
+    vlm, client = make_vlm(response_data())
+
+    result = vlm.check("gemini-check-model")
+
+    request = client.models.generate_content.call_args.kwargs
+    assert request == {"model": "gemini-check-model", "contents": "Connection check. Reply with OK."}
+    assert result["model"] == "gemini-check-model"
+    assert result["response_preview"]
+
+
+def test_sdk_uses_per_job_model_and_prepends_custom_prompt():
+    vlm, client = make_vlm(response_data())
+
+    result = vlm.analyze(
+        event(),
+        [("frame-1", "image/png", b"image-bytes")],
+        model="gemini-test-selected",
+        prompt_override="정지한 차량 수를 우선 확인하세요.",
+    )
+
+    request = client.models.generate_content.call_args.kwargs
+    assert request["model"] == "gemini-test-selected"
+    assert request["contents"][0].startswith("사용자 추가 지시:\n정지한 차량 수를 우선 확인하세요.")
+    assert "필수 출력 및 판정 규칙:" in request["contents"][0]
+    assert result["provider_model"] == "gemini-test-selected"
+    assert result["prompt_version"].startswith("custom-")
+
+
+def test_sdk_can_replace_default_prompt_but_keeps_event_context():
+    vlm, client = make_vlm(response_data())
+
+    vlm.analyze(event(), [("frame-1", "image/png", b"image-bytes")],
+                prompt_override="사고 여부만 판정하세요.", prompt_mode="replace")
+
+    prompt = client.models.generate_content.call_args.kwargs["contents"][0]
+    assert prompt.startswith("사고 여부만 판정하세요.\nevent_id=event-1")
+    assert "사용자 추가 지시" not in prompt
+    assert "candidate_time_s=4.0" in prompt
+
+
+def test_saved_prompt_presets_have_stable_ids_and_prompt2_version():
+    assert [preset["id"] for preset in PROMPT_PRESETS] == ["version1", "prompt2"]
+    assert PROMPT_PRESETS[0]["prompt"] == PROMPT_VERSION1
+    assert PROMPT_PRESETS[1]["prompt"] == PROMPT2
+
+    vlm, _ = make_vlm(response_data())
+    result = vlm.analyze(
+        event(), [("frame-1", "image/png", b"image-bytes")],
+        prompt_override=PROMPT2, prompt_mode="replace",
+    )
+    assert result["prompt_version"] == "prompt2"
 
 
 @pytest.mark.parametrize("changes", [
     {"scene_conditions": {"day_time": "unknown", "weather": None}},
-    {"scene_conditions": {"day_time": "day", "weather": "snow"}},
+    {"scene_conditions": {"day_time": "twilight", "weather": None}},
+    {"scene_conditions": {"day_time": "day", "weather": "wet"}},
+    {"scene_conditions": {"day_time": "day", "weather": "sunset"}},
     {"scene_conditions": {"day_time": "day", "weather": "Rain"}},
     {"involved_objects": [{"type": "Car", "count": 0}]},
     {"involved_objects": [{"type": "Van", "count": 1}]},
@@ -105,14 +166,21 @@ def test_accepts_documented_accident_types(accident_type):
 
 
 @pytest.mark.parametrize("day_time,weather", [
-    ("day", "clear"), ("twilight", "sunset"), ("night", "night"),
-    ("day", "wet"), ("day", "rain"), (None, None),
+    ("day", "clear"), ("day", "cloudy"), ("day", "rain"),
+    ("night", "snow"), ("night", "fog"), (None, None),
 ])
 def test_accepts_requested_weather_labels(day_time, weather):
     """요청한 다섯 장면 상태와 판단 불가 null이 RAG 입력에 유지되는지 확인한다."""
     vlm, _ = make_vlm(response_data(scene_conditions={"day_time": day_time, "weather": weather}))
     result = vlm.analyze(event(), [("frame-1", "image/png", b"image-bytes")])
     assert result["rag_input"]["scene_conditions"]["weather"] == weather
+
+
+def test_both_prompt_presets_include_scene_condition_contract():
+    for prompt in (PROMPT_VERSION1, PROMPT2):
+        assert "day 또는 night" in prompt
+        assert "clear, cloudy, rain, snow, fog" in prompt
+        assert "위 목록에 없는 값은 절대 생성하지 마세요" in prompt
 
 
 def test_does_not_call_gemini_without_media():

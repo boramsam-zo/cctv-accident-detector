@@ -1,4 +1,4 @@
-"""CPU-only Gemini enrichment for events reported by the GPU Pod."""
+"""CPU-only Gemini enrichment for candidates produced by Modal inference."""
 
 import hashlib
 import logging
@@ -20,13 +20,18 @@ class EnrichmentWorker:
     def tick(self) -> bool:
         """미처리 이벤트 하나를 Gemini로 보강하고 RAG·리포트 상태를 저장한다."""
         with self.sessions() as db:
-            events = db.scalars(select(Event).order_by(Event.id)).all()
+            events = db.scalars(
+                select(Event).join(Run, Event.run_id == Run.id)
+                .where(Run.status.in_(("running", "enriching"))).order_by(Event.id)
+            ).all()
             event_id = next((event.id for event in events if "vlm" not in event.data), None)
         if event_id is None:
             return False
         with self.sessions() as db:
             event = db.get(Event, event_id)
             event_data = dict(event.data)
+            run = db.get(Run, event.run_id)
+            vlm_config = ((run.result or {}).get("execution_config") or {}).get("vlm") or {}
             evidence = event_data["evidence"]
             ids = [evidence["clip_asset_id"]] if evidence.get("clip_asset_id") else []
             ids += [frame["asset_id"] for frame in evidence["frames"]]
@@ -42,7 +47,13 @@ class EnrichmentWorker:
                 if total > self.settings.max_gemini_clip_bytes:
                     raise ValueError("gemini_media_too_large")
                 media.append((asset.id, asset.mime_type, blob))
-            vlm = self.gemini.analyze(event_data, media)
+            vlm = self.gemini.analyze(
+                event_data,
+                media,
+                model=vlm_config.get("model"),
+                prompt_override=vlm_config.get("prompt", ""),
+                prompt_mode=vlm_config.get("prompt_mode", "prepend"),
+            )
         except Exception as exc:
             log.exception("Gemini failed for event %s", event_id)
             vlm = {"status": "failed", "reason_code": type(exc).__name__, "summary": None,

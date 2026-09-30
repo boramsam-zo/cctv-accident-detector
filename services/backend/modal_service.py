@@ -166,15 +166,27 @@ class ModalWorker:
                 run.attempt += 1
                 job = db.get(Job, run.job_id)
                 video = db.get(Video, job.video_id)
+                profile = ((run.result or {}).get("execution_config") or {}).get("analysis_profile") or {
+                    "id": run.profile_id, "source": "modal_secret"}
                 assignment = {"schema_version": "modal-inference-v1", "job_id": job.id,
                               "run_id": run.id, "source_video_id": video.id,
                               "input_object": {"bucket": self.storage.bucket, "key": video.s3_key,
                                                "sha256": video.sha256},
                               "output_prefix": f"{self.key_prefix}jobs/{job.id}/runs/{run.id}/attempt-{run.attempt}/",
                               "attempt": run.attempt,
-                              "analysis_profile": {"id": run.profile_id,
+                              "analysis_profile": {"id": profile["id"],
                                                    "analysis_mode": "offline_video"},
                               "duration_seconds": video.duration_seconds}
+                if profile.get("source") == "registered":
+                    models = profile["models"]
+                    assignment["model_weights"] = {
+                        "x3d": models["accident"]["weights"],
+                        "yolo": models["objects"]["weights"],
+                    }
+                    assignment["model_families"] = {
+                        "x3d": models["accident"]["family"],
+                        "yolo": models["objects"]["family"],
+                    }
                 run_id = run.id
             else:
                 assignment = None

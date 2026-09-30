@@ -10,7 +10,7 @@
 | `models.py`, `db.py` | 영상, 작업, Modal call ID, 후보, 검토 DB 모델과 SQLite 테스트 초기화 |
 | `modal_service.py` | Modal 비동기 제출·회수와 S3 결과 검증 |
 | `worker.py`, `run_worker.py` | Modal 회수·Gemini 후속 작업과 별도 프로세스 진입점 |
-| `pod.py` | 이전 내부 worker API의 호환 코드. Modal 흐름에서는 사용하지 않음 |
+| `result_state.py` | Modal 작업의 초기 공개 결과와 단계 상태 생성 |
 | `gemini_vlm.py` | Gemini 구조화 응답과 근거 ID 검증 |
 | `storage.py`, `video_probe.py` | S3 파일 접근과 ffprobe 영상 검사 |
 | `settings.py` | 환경 변수 설정 |
@@ -24,7 +24,7 @@ uv sync --locked --group dev
 uv run --locked pytest -q
 ```
 
-테스트는 SQLite와 가짜 S3·Modal·Gemini로 실행되어 AWS 계정이나 API 키가 필요하지 않습니다. 이전 Pod 계약 테스트도 남아 있습니다. `ffprobe`는 주입된 테스트 대역을 사용합니다.
+테스트는 SQLite와 가짜 S3·Modal·Gemini로 실행되어 AWS 계정이나 API 키가 필요하지 않습니다. `ffprobe`는 주입된 테스트 대역을 사용합니다.
 
 ## 실제 서비스 로컬 실행
 

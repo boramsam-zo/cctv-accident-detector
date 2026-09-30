@@ -35,7 +35,6 @@ def analyze_video_job(assignment: dict) -> dict:
         raise ValueError("unsupported_assignment_schema")
     source = assignment["input_object"]
     bucket, source_key = source["bucket"], source["key"]
-    weights_bucket = os.environ["MODEL_WEIGHTS_S3_BUCKET"]
     prefix = assignment["output_prefix"]
     run_id = assignment["run_id"]
     if not prefix.endswith(f"jobs/{assignment['job_id']}/runs/{run_id}/attempt-{assignment['attempt']}/"):
@@ -60,14 +59,27 @@ def analyze_video_job(assignment: dict) -> dict:
         s3.download_file(bucket, source_key, str(video_path))
         if hashlib.sha256(video_path.read_bytes()).hexdigest() != source["sha256"]:
             raise ValueError("source_sha256_mismatch")
+        assigned_weights = assignment.get("model_weights")
+        if assigned_weights:
+            weight_refs = assigned_weights
+        else:
+            weights_bucket = os.environ["MODEL_WEIGHTS_S3_BUCKET"]
+            weight_refs = {
+                "x3d": {"bucket": weights_bucket, "key": os.environ["X3D_WEIGHTS_S3_KEY"],
+                        "sha256": os.environ["X3D_WEIGHTS_SHA256"]},
+                "yolo": {"bucket": weights_bucket, "key": os.environ["YOLO_WEIGHTS_S3_KEY"],
+                         "sha256": os.environ["YOLO_WEIGHTS_SHA256"]},
+            }
         weights = {}
-        for name, environment in (("x3d", "X3D_WEIGHTS_S3_KEY"),
-                                  ("yolo", "YOLO_WEIGHTS_S3_KEY")):
-            key = os.environ[environment]
+        for name in ("x3d", "yolo"):
+            ref = weight_refs[name]
+            weight_bucket, key = ref["bucket"], ref["key"]
+            if not weight_bucket or not key or "://" in key or key.startswith("/") or ".." in key.split("/"):
+                raise ValueError(f"invalid_{name}_weights_reference")
             path = root / f"{name}.pt"
-            s3.download_file(weights_bucket, key, str(path))
+            s3.download_file(weight_bucket, key, str(path))
             digest = hashlib.sha256(path.read_bytes()).hexdigest()
-            expected_digest = os.environ[f"{name.upper()}_WEIGHTS_SHA256"]
+            expected_digest = ref["sha256"]
             if digest != expected_digest:
                 raise ValueError(f"{name}_weights_sha256_mismatch")
             weights[name] = {"path": path, "sha256": digest}
@@ -107,6 +119,7 @@ def analyze_video_job(assignment: dict) -> dict:
                                      "frames": [frame]}}
             event_refs.append(upload_json(f"{prefix}events/{event_id}/manifest.json", manifest))
         window_count = len(analysis["x3d"]["windows"])
+        families = assignment.get("model_families") or {}
         final = {"schema_version": "service-draft-v0.2", "run_id": run_id,
                  "coverage": {"requested_start_seconds": 0.0,
                               "requested_end_seconds": duration,
@@ -114,9 +127,9 @@ def analyze_video_job(assignment: dict) -> dict:
                               "predicted_windows": window_count,
                               "unclassified_windows": 0, "pending_windows": 0,
                               "unknown_ranges": []},
-                 "models": {"objects": {"family": "YOLO11s",
+                 "models": {"objects": {"family": families.get("yolo", "YOLO11s"),
                                         "weights_sha256": weights["yolo"]["sha256"]},
-                            "accident": {"family": "X3D-S",
+                            "accident": {"family": families.get("x3d", "X3D-S"),
                                          "weights_sha256": weights["x3d"]["sha256"]}},
                  "errors": []}
         final_ref = upload_json(f"{prefix}final.json", final)

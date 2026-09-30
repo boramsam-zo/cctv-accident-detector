@@ -2,6 +2,7 @@ import hashlib
 import hmac
 import json
 import base64
+import time
 from io import BytesIO
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
@@ -14,8 +15,8 @@ from sqlalchemy import and_, or_, select
 
 from . import models  # Register tables before create_all.
 from .db import make_session_factory
-from .gemini_vlm import GeminiVLM
-from .models import Asset, Event, Idempotency, Job, Review, Run, Video
+from .gemini_vlm import DEFAULT_ANALYSIS_PROMPT, PROMPT_PRESETS, GeminiVLM
+from .models import AnalysisProfile, Asset, Event, Idempotency, Job, Review, Run, Video
 from .modal_service import ModalGateway, ModalWorker
 from .result_state import initial_result
 from .settings import Settings
@@ -24,13 +25,27 @@ from .video_probe import probe_mp4
 from .worker import TERMINAL, EnrichmentWorker
 
 
+class VlmOptions(BaseModel):
+    model: str = Field(min_length=1, max_length=120, pattern=r"^[A-Za-z0-9._:/-]+$")
+    prompt: str = Field(default="", max_length=12000)
+    prompt_mode: str = Field(default="prepend", pattern=r"^(prepend|replace)$")
+
+
+class VlmCheckRequest(BaseModel):
+    model: str = Field(min_length=1, max_length=120, pattern=r"^[A-Za-z0-9._:/-]+$")
+
+
 class JobRequest(BaseModel):
     source_video_id: str
     analysis_profile_id: str
+    vlm: VlmOptions | None = None
+    defer_vlm: bool = False
 
 
 class RunRequest(BaseModel):
     analysis_profile_id: str
+    vlm: VlmOptions | None = None
+    defer_vlm: bool = False
 
 
 class ReviewRequest(BaseModel):
@@ -165,12 +180,19 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
             value.update(upload_status="ready", sha256=video.sha256)
         return value
 
-    def pod_call(callback, *args):
-        """Runpod 계약 충돌을 HTTP 409 응답으로 변환하며 작업을 호출한다."""
-        try:
-            return callback(*args)
-        except ValueError as exc:
-            raise _error(409, "POD_CONTRACT_CONFLICT", "Pod request conflicts with run state") from exc
+    def profile_payload(profile: AnalysisProfile) -> dict:
+        return {"analysis_profile_id": profile.id, "display_name": profile.display_name,
+                "description": profile.description, "is_default": False,
+                "enabled": profile.enabled, "models": profile.models,
+                "created_at": profile.created_at}
+
+    def profile_snapshot(db, profile_id: str) -> dict:
+        if profile_id == settings.analysis_profile_id:
+            return {"id": profile_id, "source": "modal_secret"}
+        profile = db.get(AnalysisProfile, profile_id)
+        if profile is None or not profile.enabled:
+            raise _error(422, "PROFILE_NOT_FOUND", "Unknown analysis profile")
+        return {"id": profile.id, "source": "registered", "models": profile.models}
 
     @app.get("/health")
     def health():
@@ -235,10 +257,96 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
     @app.get("/api/v1/analysis-profiles")
     def analysis_profiles(actor: str = Depends(auth)):
         """현재 사용 가능한 분석 프로필을 반환한다."""
-        return {"items": [{"analysis_profile_id": settings.analysis_profile_id,
-                           "display_name": "기본 사고 의심 분석",
-                           "description": "X3D-S 후보 탐색과 YOLO11s 객체 정보를 제공합니다.",
-                           "is_default": True, "enabled": True}]}
+        legacy = {"analysis_profile_id": settings.analysis_profile_id,
+                  "display_name": "기본 사고 의심 분석",
+                  "description": "Modal Secret의 X3D-S·YOLO 가중치를 사용합니다.",
+                  "is_default": True, "enabled": True, "models": None}
+        with sessions() as db:
+            rows = db.scalars(select(AnalysisProfile).where(AnalysisProfile.enabled.is_(True))
+                              .order_by(AnalysisProfile.created_at.desc())).all()
+            return {"items": [legacy, *(profile_payload(row) for row in rows)]}
+
+    @app.post("/api/v1/analysis-profiles", status_code=201)
+    def create_analysis_profile(
+        display_name: str = Form(..., min_length=1, max_length=200),
+        description: str = Form("", max_length=2000),
+        accident_family: str = Form("X3D-S", min_length=1, max_length=80),
+        object_family: str = Form("YOLO11", min_length=1, max_length=80),
+        accident_weights: UploadFile = File(...), object_weights: UploadFile = File(...),
+        actor: str = Depends(auth),
+    ):
+        """두 모델 가중치를 S3에 올리고 선택 가능한 불변 프로필을 등록한다."""
+        allowed_suffixes = (".pt", ".pth")
+        if accident_family != "X3D-S" or object_family != "YOLO11":
+            raise _error(422, "MODEL_FAMILY_NOT_SUPPORTED",
+                         "Current pipeline supports X3D-S and Ultralytics YOLO11 weights")
+        if not (accident_weights.filename or "").lower().endswith(allowed_suffixes):
+            raise _error(422, "INVALID_MODEL_WEIGHT", "Accident weight must be .pt or .pth")
+        if not (object_weights.filename or "").lower().endswith(allowed_suffixes):
+            raise _error(422, "INVALID_MODEL_WEIGHT", "Object weight must be .pt or .pth")
+        profile_id = _id("profile")
+        prefix = f"{settings.s3_key_prefix}model-profiles/{profile_id}/"
+        storage_service = get_storage()
+        uploaded_keys = []
+        try:
+            accident = storage_service.put_model_weight(
+                prefix + "accident.pt", accident_weights.file, settings.max_model_weight_bytes)
+            uploaded_keys.append(accident.key)
+            objects = storage_service.put_model_weight(
+                prefix + "objects.pt", object_weights.file, settings.max_model_weight_bytes)
+            uploaded_keys.append(objects.key)
+            models = {
+                "accident": {"family": accident_family, "weights": {
+                    "bucket": storage_service.bucket, "key": accident.key,
+                    "sha256": accident.sha256, "size_bytes": accident.size,
+                    "file_name": accident_weights.filename}},
+                "objects": {"family": object_family, "weights": {
+                    "bucket": storage_service.bucket, "key": objects.key,
+                    "sha256": objects.sha256, "size_bytes": objects.size,
+                    "file_name": object_weights.filename}},
+            }
+            with sessions.begin() as db:
+                profile = AnalysisProfile(id=profile_id, display_name=display_name.strip(),
+                                          description=description.strip(), models=models)
+                db.add(profile)
+                db.flush()
+                response = profile_payload(profile)
+            return response
+        except ValueError as exc:
+            for key in uploaded_keys:
+                storage_service.delete(key)
+            raise _error(422, "INVALID_MODEL_WEIGHT", str(exc)) from exc
+        except Exception:
+            for key in uploaded_keys:
+                storage_service.delete(key)
+            raise
+
+    @app.get("/api/v1/vlm-options")
+    def vlm_options(actor: str = Depends(auth)):
+        """작업별 VLM 설정 화면에 사용할 허용 모델과 기본값을 반환한다."""
+        models = settings.gemini_models or (settings.gemini_model,)
+        return {"models": list(models), "default_model": settings.gemini_model,
+                "prompt_default": DEFAULT_ANALYSIS_PROMPT,
+                "prompt_presets": list(PROMPT_PRESETS),
+                "default_prompt_preset": "version1",
+                "prompt_modes": ["replace", "prepend"],
+                "default_prompt_mode": "replace"}
+
+    @app.post("/api/v1/vlm-options/check")
+    def check_vlm(req: VlmCheckRequest, actor: str = Depends(auth)):
+        """허용된 Gemini 모델에 작은 요청을 보내 현재 API 응답 상태를 확인한다."""
+        if req.model not in (settings.gemini_models or (settings.gemini_model,)):
+            raise _error(422, "VLM_MODEL_NOT_ALLOWED", "Gemini model is not enabled")
+        started = time.perf_counter()
+        try:
+            result = get_enrichment_worker().gemini.check(req.model)
+        except Exception as exc:
+            return {"available": False, "model": req.model,
+                    "latency_ms": round((time.perf_counter() - started) * 1000),
+                    "error_code": type(exc).__name__}
+        return {"available": True, **result,
+                "latency_ms": round((time.perf_counter() - started) * 1000),
+                "error_code": None}
 
     @app.post("/api/v1/jobs", status_code=202)
     def create_job(req: JobRequest, idempotency_key: str = Header(..., alias="Idempotency-Key"), actor: str = Depends(auth)):
@@ -247,15 +355,20 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
             old = _idempotency(db, actor, "POST /jobs", idempotency_key, req.model_dump())
             if old:
                 return old
-            if req.analysis_profile_id != settings.analysis_profile_id:
-                raise _error(422, "PROFILE_NOT_FOUND", "Unknown analysis profile")
+            selected_profile = profile_snapshot(db, req.analysis_profile_id)
+            vlm = req.vlm or VlmOptions(model=settings.gemini_model)
+            if vlm.model not in (settings.gemini_models or (settings.gemini_model,)):
+                raise _error(422, "VLM_MODEL_NOT_ALLOWED", "Gemini model is not enabled")
             video = db.get(Video, req.source_video_id)
             if video is None:
                 raise _error(404, "RESOURCE_NOT_FOUND", "Video not found")
             job_id, run_id = _id("job"), _id("run")
             db.add(Job(id=job_id, video_id=req.source_video_id, active_run_id=run_id))
+            vlm_config = vlm.model_dump()
+            vlm_config["manual_start"] = req.defer_vlm
             run = Run(id=run_id, job_id=job_id, profile_id=req.analysis_profile_id,
-                      result=initial_result(video))
+                      result=initial_result(video, {"vlm": vlm_config,
+                                                    "analysis_profile": selected_profile}))
             db.add(run)
             db.flush()
             response = {"job_id": job_id, "run_id": run_id, "status": run.status,
@@ -305,6 +418,7 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
                     "video": result.get("video") or {"duration_seconds": video.duration_seconds, "camera_id": video.camera_id,
                         "recorded_at": video.recorded_at, "original_asset_id": f"source-{video.id}"},
                     "coverage": result.get("coverage"), "models": result.get("models"),
+                    "execution_config": result.get("execution_config", {}),
                     "stages": result.get("stages"), "candidates": result.get("candidates", []),
                     "errors": [run.error] if run.error else result.get("errors", [])}
 
@@ -320,11 +434,17 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
                 raise _error(404, "RESOURCE_NOT_FOUND", "Job not found")
             if db.get(Run, job.active_run_id).status not in TERMINAL:
                 raise _error(409, "RUN_ALREADY_ACTIVE", "Current run has not finished")
-            if req.analysis_profile_id != settings.analysis_profile_id:
-                raise _error(422, "PROFILE_NOT_FOUND", "Unknown analysis profile")
+            selected_profile = profile_snapshot(db, req.analysis_profile_id)
+            vlm = req.vlm or VlmOptions(model=settings.gemini_model)
+            if vlm.model not in (settings.gemini_models or (settings.gemini_model,)):
+                raise _error(422, "VLM_MODEL_NOT_ALLOWED", "Gemini model is not enabled")
             run_id = _id("run")
+            vlm_config = vlm.model_dump()
+            vlm_config["manual_start"] = req.defer_vlm
             run = Run(id=run_id, job_id=job.id, profile_id=req.analysis_profile_id,
-                      result=initial_result(db.get(Video, job.video_id)))
+                      result=initial_result(db.get(Video, job.video_id),
+                                            {"vlm": vlm_config,
+                                             "analysis_profile": selected_profile}))
             db.add(run)
             job.active_run_id = run_id
             db.flush()
