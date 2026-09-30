@@ -9,7 +9,7 @@ from moto import mock_aws
 
 from services.backend.db import make_session_factory
 from services.backend.models import Asset, Event, Job, Report, Run, Video
-from services.backend.pod import initial_result
+from services.backend.result_state import initial_result
 from services.backend.settings import Settings
 from services.backend.storage import S3Storage
 from services.backend.worker import EnrichmentWorker
@@ -27,9 +27,9 @@ def enrichment_context(tmp_path, monkeypatch):
         sessions = make_session_factory(f"sqlite:///{tmp_path / 'enrichment.db'}")
         settings = Settings(
             database_url="", s3_bucket=storage.bucket, s3_endpoint_url=None,
-            aws_region="us-east-1", pod_worker_token="test", gemini_api_key="test",
+            aws_region="us-east-1", gemini_api_key="test",
             gemini_model="test", app_api_key="test", analysis_profile_id="profile-1",
-            max_upload_bytes=1_000, max_gemini_clip_bytes=1_000, worker_lease_seconds=60,
+            max_upload_bytes=1_000, max_gemini_clip_bytes=1_000,
         )
         event_data = {"event_id": "event-1", "start_seconds": 2.0, "end_seconds": 4.0,
                       "candidate_time_s": 3.0, "evidence": {
@@ -97,6 +97,8 @@ def test_worker_rejects_modified_evidence_before_gemini(enrichment_context):
         event = db.get(Event, "event-1")
         run = db.get(Run, "run-1")
         assert event.data["vlm"]["status"] == "failed"
+        assert event.data["vlm"]["reason_code"] == "ValueError"
+        assert event.data["vlm"]["error_message"] == "evidence_sha256_mismatch"
         assert "rag_input" not in event.data
         assert event.data["retrieval"]["status"] == "insufficient_evidence"
         assert run.status == "partial"

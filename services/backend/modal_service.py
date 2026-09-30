@@ -148,7 +148,13 @@ class ModalWorker:
             run.result, run.manifest_key = value, final_key
             run.outcome = "candidates_found" if candidates else (
                 "unknown" if counts[2] or counts[3] else "no_candidates")
-            run.status = "enriching" if candidates else (
+            manual_vlm = ((value.get("execution_config") or {}).get("vlm") or {}).get(
+                "manual_start", False)
+            if candidates and manual_vlm:
+                stages["vlm"] = {"status": "pending", "reason_code": "manual_start_required"}
+                value["stages"] = stages
+                run.result = value
+            run.status = ("awaiting_vlm" if manual_vlm else "enriching") if candidates else (
                 "partial" if run.outcome == "unknown" else "completed")
 
     def _fail(self, run_id: str, exc: Exception) -> None:

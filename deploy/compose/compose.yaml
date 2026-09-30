@@ -19,6 +19,9 @@ x-app-common: &app-common
     MODAL_ENVIRONMENT: ${MODAL_ENVIRONMENT:-dev}
     MODAL_APP_NAME: ${MODAL_APP_NAME:-cctv-accident-inference}
     MODAL_FUNCTION_NAME: ${MODAL_FUNCTION_NAME:-analyze_video_job}
+    GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.6-flash}
+    GEMINI_MODELS: ${GEMINI_MODELS:-}
+    MAX_MODEL_WEIGHT_BYTES: ${MAX_MODEL_WEIGHT_BYTES:-536870912}
   restart: unless-stopped
 
 services:
@@ -48,6 +51,9 @@ services:
   backend:
     <<: *app-common
     command: ["uvicorn", "services.backend.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      <<: *app-environment
+      GEMINI_API_KEY: ${GEMINI_API_KEY:?Set GEMINI_API_KEY in .env}
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -65,7 +71,6 @@ services:
     environment:
       <<: *app-environment
       GEMINI_API_KEY: ${GEMINI_API_KEY:?Set GEMINI_API_KEY in .env}
-      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.6-flash}
       MODAL_TOKEN_ID: ${MODAL_TOKEN_ID:?Set MODAL_TOKEN_ID in .env}
       MODAL_TOKEN_SECRET: ${MODAL_TOKEN_SECRET:?Set MODAL_TOKEN_SECRET in .env}
     depends_on:
@@ -84,6 +89,19 @@ services:
         condition: service_healthy
     ports:
       - "8501:8501"
+
+  test-ui:
+    <<: *app-common
+    profiles: ["test"]
+    command: ["streamlit", "run", "apps/streamlit/e2e_test.py", "--server.address", "0.0.0.0", "--server.port", "8502", "--server.headless", "true", "--server.maxUploadSize", "1024"]
+    environment:
+      BACKEND_API_URL: http://backend:8000
+      APP_API_KEY: ${APP_API_KEY:?Set APP_API_KEY in .env}
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8502:8502"
 
 volumes:
   postgres_data:

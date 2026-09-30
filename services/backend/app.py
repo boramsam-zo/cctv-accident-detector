@@ -422,6 +422,60 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
                     "stages": result.get("stages"), "candidates": result.get("candidates", []),
                     "errors": [run.error] if run.error else result.get("errors", [])}
 
+    @app.post("/api/v1/jobs/{job_id}/vlm", status_code=202)
+    def start_vlm(job_id: str, idempotency_key: str = Header(..., alias="Idempotency-Key"),
+                  actor: str = Depends(auth)):
+        """Start pending VLM work or retry only the candidates that failed VLM."""
+        payload = {"action": "start_vlm"}
+        with sessions.begin() as db:
+            old = _idempotency(db, actor, f"POST /jobs/{job_id}/vlm", idempotency_key, payload)
+            if old:
+                return old
+            job = db.get(Job, job_id)
+            if not job:
+                raise _error(404, "RESOURCE_NOT_FOUND", "Job not found")
+            run = db.get(Run, job.active_run_id)
+            result = dict(run.result or {})
+            candidates = list(result.get("candidates") or [])
+            if run.status == "awaiting_vlm":
+                retry_count = len(candidates)
+            elif run.status in TERMINAL:
+                retry_count = 0
+                reset_candidates = []
+                for candidate in candidates:
+                    if (candidate.get("vlm") or {}).get("status") != "failed":
+                        reset_candidates.append(candidate)
+                        continue
+                    event = db.get(Event, candidate["event_id"])
+                    event_data = dict(event.data)
+                    for key in ("vlm", "rag_input", "retrieval", "report"):
+                        event_data.pop(key, None)
+                    event.data = event_data
+                    reset_candidates.append(event_data)
+                    retry_count += 1
+                candidates = reset_candidates
+                result["candidates"] = candidates
+            else:
+                raise _error(409, "VLM_NOT_AWAITING_START",
+                             "Run is not waiting for a VLM request or retry")
+            if not candidates:
+                raise _error(409, "VLM_HAS_NO_CANDIDATES", "Run has no candidates to analyze")
+            if retry_count == 0:
+                raise _error(409, "VLM_HAS_NO_FAILED_CANDIDATES",
+                             "Run has no failed VLM candidates to retry")
+            stages = dict(result.get("stages") or {})
+            stages["vlm"] = {"status": "running", "reason_code": None}
+            stages["rag"] = {"status": "pending", "reason_code": None}
+            stages["report"] = {"status": "pending", "reason_code": None}
+            result["stages"] = stages
+            run.result = result
+            run.status = "enriching"
+            response = {"job_id": job.id, "run_id": run.id, "status": run.status,
+                        "candidate_count": retry_count}
+            _idempotency(db, actor, f"POST /jobs/{job_id}/vlm", idempotency_key,
+                         payload, response)
+            return response
+
     @app.post("/api/v1/jobs/{job_id}/runs", status_code=202)
     def rerun(job_id: str, req: RunRequest, idempotency_key: str = Header(..., alias="Idempotency-Key"), actor: str = Depends(auth)):
         """종료된 작업에 새 분석 실행을 만들고 활성 실행으로 지정한다."""

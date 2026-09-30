@@ -56,7 +56,12 @@ class EnrichmentWorker:
             )
         except Exception as exc:
             log.exception("Gemini failed for event %s", event_id)
+            error_message = str(exc).strip() or type(exc).__name__
+            api_key = getattr(self.settings, "gemini_api_key", "")
+            if api_key:
+                error_message = error_message.replace(api_key, "[REDACTED]")
             vlm = {"status": "failed", "reason_code": type(exc).__name__, "summary": None,
+                   "error_message": error_message[:1000],
                    "observations": [], "uncertainties": ["장면 설명 실패"]}
         report = {"report_id": f"report-{uuid4().hex}", "revision": 1,
                   "status": "partial" if vlm["status"] == "failed" else "completed",
@@ -70,6 +75,11 @@ class EnrichmentWorker:
             event = db.get(Event, event_id)
             if "vlm" in event.data:
                 return True
+            previous_report = db.scalars(
+                select(Report).where(Report.event_id == event_id)
+                .order_by(Report.revision.desc())
+            ).first()
+            report["revision"] = previous_report.revision + 1 if previous_report else 1
             event_data = dict(event.data)
             vlm_payload = dict(vlm)
             rag_input = vlm_payload.pop("rag_input", None)
@@ -81,7 +91,8 @@ class EnrichmentWorker:
                                         "citations": []}
             event_data["report"] = report
             event.data = event_data
-            db.add(Report(id=report["report_id"], event_id=event_id, revision=1, data=report))
+            db.add(Report(id=report["report_id"], event_id=event_id,
+                          revision=report["revision"], data=report))
             run = db.get(Run, event.run_id)
             result = dict(run.result)
             result["candidates"] = [event_data if item["event_id"] == event_id else item
