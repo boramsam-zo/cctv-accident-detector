@@ -61,7 +61,8 @@ class ModalWorker:
         digest = item.get("sha256", "")
         if not key.startswith(prefix) or not self.storage.exists(key):
             raise ValueError("invalid_asset_key")
-        if mime not in ({"video/mp4"} if kind == "clip" else {"image/jpeg", "image/png"}):
+        video_kinds = {"clip", "annotated_clip"}
+        if mime not in ({"video/mp4"} if kind in video_kinds else {"image/jpeg", "image/png"}):
             raise ValueError("invalid_asset_mime")
         if len(digest) != 64 or hashlib.sha256(self.storage.get_bytes(key, 20_000_000)).hexdigest() != digest:
             raise ValueError("asset_sha256_mismatch")
@@ -107,10 +108,14 @@ class ModalWorker:
                     raise ValueError("event_manifest_invalid")
                 evidence = manifest.get("evidence") or {}
                 clip = evidence.get("clip")
+                annotated_clip = evidence.get("annotated_clip")
                 frames = evidence.get("frames") or []
                 if not clip and not frames:
                     raise ValueError("candidate_has_no_evidence")
                 clip_id = self._asset(db, run, event_id, "clip", 0, clip, prefix) if clip else None
+                annotated_clip_id = self._asset(
+                    db, run, event_id, "annotated_clip", 0, annotated_clip, prefix
+                ) if annotated_clip else None
                 frame_data = []
                 for frame_index, frame in enumerate(frames):
                     asset_id = self._asset(db, run, event_id, "frame", frame_index, frame, prefix)
@@ -119,7 +124,8 @@ class ModalWorker:
                 event_data = {key: value for key, value in manifest.items() if key != "evidence"}
                 event_data.update({"label": "suspected_accident", "evidence": {
                     "clip_asset_id": clip_id, "clip_start_seconds": evidence.get("clip_start_seconds"),
-                    "clip_end_seconds": evidence.get("clip_end_seconds"), "frames": frame_data},
+                    "clip_end_seconds": evidence.get("clip_end_seconds"),
+                    "annotated_clip_asset_id": annotated_clip_id, "frames": frame_data},
                     "human_review": {"status": "unreviewed", "review_id": None,
                                      "review_revision": 0, "report_revision": None, "note": None}})
                 db.add(Event(id=event_id, run_id=run_id, sequence_number=index,

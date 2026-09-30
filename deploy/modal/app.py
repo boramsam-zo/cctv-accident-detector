@@ -29,7 +29,9 @@ def analyze_video_job(assignment: dict) -> dict:
     import boto3
     import cv2
 
-    from accident_vision.pipeline import ModelBundle, analyze_video, frame_at
+    from accident_vision.pipeline import (
+        ModelBundle, analyze_video, annotate_collision_frame, frame_at,
+    )
 
     if assignment.get("schema_version") != "modal-inference-v1":
         raise ValueError("unsupported_assignment_schema")
@@ -99,7 +101,28 @@ def analyze_video_job(assignment: dict) -> dict:
                             "-pix_fmt", "yuv420p", str(clip_path)], check=True)
             clip = upload(f"{prefix}events/{event_id}/clip.mp4",
                           clip_path.read_bytes(), "video/mp4")
-            ok, image_data = cv2.imencode(".jpg", frame_at(video_path, candidate_time))
+            annotated_avi_path = root / f"{event_id}-annotated.avi"
+            annotated_clip_path = root / f"{event_id}-annotated.mp4"
+            models.annotate_video(
+                clip_path,
+                annotated_avi_path,
+                collision_start_s=max(0.0, float(event["start_s"]) - clip_start),
+                collision_end_s=min(clip_end - clip_start,
+                                    float(event["end_s"]) - clip_start),
+                collision_score=float(event["peak_probability"]),
+            )
+            subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+                            "-i", str(annotated_avi_path), "-an", "-c:v", "libx264",
+                            "-pix_fmt", "yuv420p", "-movflags", "+faststart",
+                            str(annotated_clip_path)], check=True)
+            annotated_clip = upload(f"{prefix}events/{event_id}/annotated.mp4",
+                                    annotated_clip_path.read_bytes(), "video/mp4")
+            representative_frame = annotate_collision_frame(
+                frame_at(video_path, candidate_time),
+                event["yolo_objects"],
+                float(event["peak_probability"]),
+            )
+            ok, image_data = cv2.imencode(".jpg", representative_frame)
             if not ok:
                 raise ValueError("candidate_frame_encode_failed")
             frame = upload(f"{prefix}events/{event_id}/frame.jpg",
@@ -116,6 +139,7 @@ def analyze_video_job(assignment: dict) -> dict:
                         "object_observations": event["yolo_objects"],
                         "evidence": {"clip_start_seconds": clip_start,
                                      "clip_end_seconds": clip_end, "clip": clip,
+                                     "annotated_clip": annotated_clip,
                                      "frames": [frame]}}
             event_refs.append(upload_json(f"{prefix}events/{event_id}/manifest.json", manifest))
         window_count = len(analysis["x3d"]["windows"])

@@ -27,6 +27,54 @@ YOLO_CONFIDENCE = 0.25
 MAX_VIDEO_SECONDS = 120.0  # Bounded-memory demo/API endpoint.
 
 
+def collision_region(boxes: list[list[float]], width: int, height: int) -> tuple[int, int, int, int]:
+    """Return a padded envelope around detected objects, or the full frame."""
+    if not boxes:
+        return 2, 2, max(2, width - 3), max(2, height - 3)
+    padding = max(4, round(min(width, height) * 0.02))
+    return (
+        max(0, int(min(box[0] for box in boxes)) - padding),
+        max(0, int(min(box[1] for box in boxes)) - padding),
+        min(width - 1, int(max(box[2] for box in boxes)) + padding),
+        min(height - 1, int(max(box[3] for box in boxes)) + padding),
+    )
+
+
+def annotate_collision_frame(bgr_frame: Any, detections: list[dict[str, Any]],
+                             score: float | None = None) -> Any:
+    """Return a representative frame with a red accident-candidate envelope."""
+    import cv2
+
+    frame = bgr_frame.copy()
+    height, width = frame.shape[:2]
+    boxes = [row["box_xyxy_px"] for row in detections if row.get("box_xyxy_px")]
+    x1, y1, x2, y2 = collision_region(boxes, width, height)
+    thickness = max(3, round(min(width, height) / 180))
+    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), thickness)
+
+    label = "ACCIDENT CANDIDATE"
+    if score is not None:
+        label += f" {score:.2f}"
+    font_scale = max(0.55, min(width, height) / 900)
+    (text_width, text_height), baseline = cv2.getTextSize(
+        label, cv2.FONT_HERSHEY_SIMPLEX, font_scale, 2)
+    label_height = text_height + baseline + 8
+    if y1 >= label_height:
+        label_top, label_bottom = y1 - label_height, y1
+    else:
+        label_top = y1
+        label_bottom = min(height - 1, y1 + label_height)
+    cv2.rectangle(
+        frame, (x1, label_top),
+        (min(width - 1, x1 + text_width + 10), label_bottom), (0, 0, 255), -1,
+    )
+    cv2.putText(
+        frame, label, (x1 + 5, label_top + text_height + 4),
+        cv2.FONT_HERSHEY_SIMPLEX, font_scale, (255, 255, 255), 2, cv2.LINE_AA,
+    )
+    return frame
+
+
 class ModelBundle:
     def __init__(self, x3d_checkpoint: Path, yolo_checkpoint: Path,
                  device: str = "cpu", allow_a100: bool = False):
@@ -115,6 +163,79 @@ class ModelBundle:
                 "box_xyxy_normalized": [x1 / width, y1 / height, x2 / width, y2 / height],
             })
         return rows
+
+    def annotate_video(self, source_path: Path, output_path: Path, *,
+                       collision_start_s: float | None = None,
+                       collision_end_s: float | None = None,
+                       collision_score: float | None = None) -> int:
+        """Render YOLO boxes and a red region during the X3D candidate interval."""
+        import cv2
+        import numpy as np
+
+        capture = cv2.VideoCapture(str(source_path))
+        if not capture.isOpened():
+            raise RuntimeError(f"Cannot open clip for YOLO annotation: {source_path}")
+        try:
+            fps = float(capture.get(cv2.CAP_PROP_FPS))
+            width = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH))
+            height = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        finally:
+            capture.release()
+        if not np.isfinite(fps) or fps <= 0 or width <= 0 or height <= 0:
+            raise RuntimeError(f"Invalid clip metadata for YOLO annotation: {source_path}")
+
+        writer = cv2.VideoWriter(
+            str(output_path), cv2.VideoWriter_fourcc(*"MJPG"), fps, (width, height)
+        )
+        if not writer.isOpened():
+            raise RuntimeError(f"Cannot create annotated clip: {output_path}")
+        frame_count = 0
+        try:
+            results = self.yolo.predict(
+                source=str(source_path), imgsz=YOLO_IMAGE_SIZE, conf=YOLO_CONFIDENCE,
+                device=0 if self.device == "cuda" else "cpu",
+                half=self.device == "cuda", verbose=False, stream=True,
+            )
+            for result in results:
+                frame = result.plot()
+                frame_time = (frame_count + 0.5) / fps
+                highlight = (collision_start_s is not None and collision_end_s is not None
+                             and collision_start_s <= frame_time <= collision_end_s)
+                if highlight:
+                    boxes = (result.boxes.xyxy.cpu().tolist()
+                             if result.boxes is not None else [])
+                    x1, y1, x2, y2 = collision_region(boxes, width, height)
+                    thickness = max(3, round(min(width, height) / 180))
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), thickness)
+                    label = "ACCIDENT CANDIDATE"
+                    if collision_score is not None:
+                        label += f" {collision_score:.2f}"
+                    font_scale = max(0.55, min(width, height) / 900)
+                    (text_width, text_height), baseline = cv2.getTextSize(
+                        label, cv2.FONT_HERSHEY_SIMPLEX, font_scale, 2)
+                    label_height = text_height + baseline + 8
+                    if y1 >= label_height:
+                        label_top, label_bottom = y1 - label_height, y1
+                    else:
+                        label_top = y1
+                        label_bottom = min(height - 1, y1 + label_height)
+                    cv2.rectangle(
+                        frame, (x1, label_top),
+                        (min(width - 1, x1 + text_width + 10), label_bottom),
+                        (0, 0, 255), -1,
+                    )
+                    cv2.putText(
+                        frame, label, (x1 + 5, label_top + text_height + 4),
+                        cv2.FONT_HERSHEY_SIMPLEX, font_scale, (255, 255, 255), 2,
+                        cv2.LINE_AA,
+                    )
+                writer.write(frame)
+                frame_count += 1
+        finally:
+            writer.release()
+        if frame_count == 0:
+            raise RuntimeError(f"YOLO produced no annotated frames: {source_path}")
+        return frame_count
 
 
 def decode_resized_video(path: Path):
