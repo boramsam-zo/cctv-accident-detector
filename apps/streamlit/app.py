@@ -752,6 +752,20 @@ def render_report(candidate: dict[str, Any]) -> None:
         st.info("보고 초안을 준비하고 있습니다.")
     else:
         st.markdown(f'<div class="analysis-box"><p>{escape(str(report.get("text") or "보고 내용이 없습니다."))}</p></div>', unsafe_allow_html=True)
+        if "agencies" in report:
+            st.subheader("필요한 연락 기관")
+            if not report["agencies"]:
+                st.caption("현재 관찰·문서 근거로 선정된 기관이 없습니다. 필요 기관이 없다는 확정 판단은 아닙니다.")
+            for agency in report["agencies"]:
+                label = "조건부 검토" if agency["selection_status"] == "conditional" else "관찰 근거 있음"
+                st.markdown(f"**{agency['agency']}** · {label}")
+                st.write(f"담당 역할: {agency['role']}")
+                st.write(f"선정 이유: {agency['reason']}")
+                for condition in agency.get("conditions_to_confirm", []):
+                    st.caption(f"확인 필요 · {condition}")
+                st.caption("근거 청크 · " + ", ".join(agency["citation_chunk_ids"]))
+            st.download_button("리포트 JSON 다운로드", json.dumps(report, ensure_ascii=False, indent=2),
+                               file_name=f"{report.get('report_id', 'report')}.json", mime="application/json")
         for limitation in report.get("limitations", []):
             st.caption(f"제한사항 · {limitation}")
 
@@ -772,6 +786,18 @@ def render_retrieval(candidate: dict[str, Any]) -> None:
     else:
         citations = retrieval.get("citations", [])
         st.success(f"관련 근거 {len(citations)}건을 찾았습니다.")
+    for citation in retrieval.get("citations", []):
+        with st.expander(f"{citation['title']} · {citation.get('section') or ''}"):
+            st.caption("출처 기반 요약" if citation.get("text_origin") == "attributed_summary" else "법령·규칙 발췌")
+            st.write(citation.get("excerpt", ""))
+            st.caption("근거 ID · " + str(citation.get("chunk_id", citation["document_id"])))
+            for condition in citation.get("application_conditions", []):
+                st.caption(f"적용 조건 · {condition}")
+            url = citation.get("source_url") or ""
+            if url.startswith(("https://", "http://")):
+                st.link_button("원출처 보기", url)
+    if retrieval.get("reference_date"):
+        st.caption(f"검색 기준일 · {retrieval['reference_date']}")
 
 
 def render_pipeline(result: dict[str, Any]) -> None:
@@ -821,7 +847,7 @@ def render_result(result: dict[str, Any]) -> None:
     st.markdown('<div style="height:.6rem"></div>', unsafe_allow_html=True)
     pipeline_label = "처리 현황" + (f" · 오류 {len(result['errors'])}" if result["errors"] else "")
     if candidate:
-        report_tab, retrieval_tab, pipeline_tab = st.tabs(["AI 사고 분석 보고서", "유사 사례 및 문서 근거", pipeline_label])
+        report_tab, retrieval_tab, pipeline_tab = st.tabs(["AI 사고 분석 보고서", "대응자료·법령 근거", pipeline_label])
         with report_tab:
             render_report(candidate)
         with retrieval_tab:

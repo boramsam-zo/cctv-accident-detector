@@ -458,6 +458,13 @@ def main() -> None:
             render_vlm_failures(client, st.session_state.e2e_result)
             render_vlm_io(st.session_state.e2e_result)
             render_rag_inputs(st.session_state.e2e_result)
+            from apps.streamlit.app import render_report, render_retrieval
+
+            for candidate in st.session_state.e2e_result.get("candidates", []):
+                if candidate.get("report"):
+                    st.subheader(f"최종 리포트 · {candidate['event_id']}")
+                    render_report(candidate)
+                    render_retrieval(candidate)
         else:
             poll_job(client)
 
