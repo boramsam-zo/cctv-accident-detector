@@ -18,8 +18,18 @@ def test_start_analysis_uses_uploaded_source_video_id():
     client.create_job.assert_called_once_with(
         "video-1", "profile-1", client.create_job.call_args.args[2],
         vlm_model="gemini-test", vlm_prompt="prompt", vlm_prompt_mode="replace",
-        defer_vlm=True)
+        defer_vlm=False)
     assert state.e2e_job_id == "job-1"
+
+
+def test_manual_mode_preserves_candidate_review_before_gemini():
+    client = Mock()
+    client.upload_video.return_value = {"source_video_id": "video-1"}
+    client.create_job.return_value = {"job_id": "job-1"}
+    uploaded = SimpleNamespace(name="sample.mp4", getvalue=lambda: b"video")
+    with patch.object(e2e_test.st, "session_state", SimpleNamespace()):
+        e2e_test.start_analysis(client, uploaded, "profile", "model", "", "prepend", manual_vlm=True)
+    assert client.create_job.call_args.kwargs["defer_vlm"] is True
 
 
 def test_freeze_elapsed_time_stops_once_analysis_finishes():

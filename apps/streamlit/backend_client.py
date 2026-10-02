@@ -50,6 +50,9 @@ class BackendClient:
     def health(self) -> dict:
         return self.request("GET", "/health")
 
+    def rag_status(self) -> dict:
+        return self.request("GET", "/api/v1/rag/status")
+
     def list_videos(self) -> dict:
         return self.request("GET", "/api/v1/videos", params={"limit": 100})
 

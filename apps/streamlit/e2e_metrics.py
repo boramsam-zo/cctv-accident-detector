@@ -52,6 +52,15 @@ def summarize_result(result: dict[str, Any]) -> dict[str, int | float]:
         "vlm_observation_count": len(observations),
         "vlm_uncertainty_count": len(uncertainties),
         "rag_input_count": sum(bool(candidate.get("rag_input")) for candidate in candidates),
+        "retrieval_completed_count": sum(
+            (candidate.get("retrieval") or {}).get("status") == "completed" for candidate in candidates),
+        "citation_count": sum(len((candidate.get("retrieval") or {}).get("citations") or [])
+                              for candidate in candidates),
+        "report_completed_count": sum(
+            (candidate.get("report") or {}).get("generation_status") == "completed"
+            and bool((candidate.get("report") or {}).get("structured")) for candidate in candidates),
+        "agency_count": sum(len((candidate.get("report") or {}).get("agencies") or [])
+                            for candidate in candidates),
         "error_count": len(result.get("errors") or []),
     }
 

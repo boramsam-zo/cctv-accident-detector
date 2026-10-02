@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+import json
 from typing import Any
 from uuid import uuid4
 
@@ -38,6 +39,14 @@ def render_metrics(result: dict[str, Any], elapsed_seconds: float) -> None:
     second[2].metric("VLM 관찰", values["vlm_observation_count"])
     second[3].metric("RAG 입력", values["rag_input_count"])
     second[4].metric("오류", values["error_count"])
+
+    final = st.columns(4)
+    final[0].metric("검색 완료", values["retrieval_completed_count"])
+    final[1].metric("검색 근거", values["citation_count"])
+    final[2].metric("최종 리포트 완료", values["report_completed_count"])
+    final[3].metric("필요 연락 기관", values["agency_count"])
+    for error in result.get("errors") or []:
+        st.error(f"{error.get('code', 'ERROR')} · {error.get('message', '')}")
 
     scheduled = int(values["scheduled_windows"])
     processed = int(values["predicted_windows"])
@@ -98,7 +107,7 @@ def render_rag_inputs(result: dict[str, Any]) -> None:
     if not records:
         return
 
-    st.subheader("RAG 전달 최종 JSON")
+    st.subheader("RAG 검색 입력 JSON")
     available = [record for record in records if record["rag_input"]]
     if not available:
         st.info("VLM 분석이 완료되면 event_id와 VLM 결과를 합친 RAG 입력 JSON이 표시됩니다.")
@@ -233,7 +242,9 @@ def render_profile_registration(client: BackendClient) -> None:
 
 
 def start_analysis(client: BackendClient, uploaded_file: Any, profile_id: str,
-                   vlm_model: str, vlm_prompt: str, vlm_prompt_mode: str) -> None:
+                   vlm_model: str, vlm_prompt: str, vlm_prompt_mode: str,
+                   *, manual_vlm: bool = False) -> None:
+    started_at = time.monotonic()
     request_id = uuid4().hex
     video = client.upload_video(
         uploaded_file.name,
@@ -248,10 +259,10 @@ def start_analysis(client: BackendClient, uploaded_file: Any, profile_id: str,
         vlm_model=vlm_model,
         vlm_prompt=vlm_prompt,
         vlm_prompt_mode=vlm_prompt_mode,
-        defer_vlm=True,
+        defer_vlm=manual_vlm,
     )
     st.session_state.e2e_job_id = job["job_id"]
-    st.session_state.e2e_started_at = time.monotonic()
+    st.session_state.e2e_started_at = started_at
     st.session_state.e2e_finished_at = None
     st.session_state.e2e_result = None
 
@@ -292,9 +303,9 @@ def poll_job(client: BackendClient) -> None:
 
 
 def main() -> None:
-    st.set_page_config(page_title="CCTV E2E 수치 테스트", layout="wide")
-    st.title("영상 분석 E2E 수치 테스트")
-    st.caption("영상 업로드 → S3 → Modal 추론 → Gemini VLM 결과를 실제 백엔드 함수로 확인합니다.")
+    st.set_page_config(page_title="CCTV E2E 리포트 테스트", layout="wide")
+    st.title("영상 업로드부터 최종 리포트까지 E2E 테스트")
+    st.caption("실제 백엔드의 영상 처리·문서 검색·기관별 리포트 생성 결과를 확인합니다.")
 
     client = BackendClient.from_env()
     if client is None:
@@ -318,11 +329,17 @@ def main() -> None:
         health = client.health()
         profiles = load_profiles(client)
         vlm_options = client.vlm_options()
+        rag_status = client.rag_status()
     except BackendError as exc:
         st.error(f"백엔드 연결 실패: {exc}")
         st.stop()
 
     st.caption(f"백엔드 상태: {health.get('status', 'unknown')} · 사용 가능 프로필: {len(profiles)}")
+    rag_ready = rag_status.get("status") == "ready"
+    if rag_ready:
+        st.success(f"검색 준비 완료 · {rag_status['store']} · {rag_status['chunk_count']}개 청크 · {rag_status['dimensions']}차원")
+    else:
+        st.error(f"최종 리포트 검색 준비 안 됨 · {rag_status.get('status')} · {rag_status.get('message', 'RAG_ENABLED 설정을 확인하세요.')}")
     if st.session_state.e2e_profile_created:
         st.success(f"프로필 등록 완료: {st.session_state.e2e_profile_created}")
         st.session_state.e2e_profile_created = None
@@ -419,12 +436,17 @@ def main() -> None:
     )
     uploaded_file = st.file_uploader("MP4 영상", type=["mp4"])
 
-    if st.button("분석 시작", type="primary", disabled=uploaded_file is None):
+    busy = bool(st.session_state.e2e_job_id and not st.session_state.e2e_finished_at)
+    manual_vlm = st.checkbox("사고 후보 확인 후 영상 분석을 수동으로 시작", value=False,
+                             disabled=busy)
+    st.caption("영상 업로드 → 사고 후보 → 영상 분석 → PostgreSQL 검색 → 최종 리포트까지 자동 진행합니다.")
+    st.caption("사고 후보당 영상 분석·질의 임베딩·리포트 생성 각 1회입니다. 연결 확인·재시도는 별도 요청입니다. 사고 후보가 없으면 리포트가 생성되지 않습니다.")
+    if st.button("분석 시작", type="primary", disabled=uploaded_file is None or busy or not rag_ready):
         try:
             with st.spinner("영상 업로드와 작업 등록 중..."):
                 start_analysis(
                     client, uploaded_file, selected_profile, selected_model,
-                    vlm_prompt, prompt_mode,
+                    vlm_prompt, prompt_mode, manual_vlm=manual_vlm,
                 )
             st.rerun()
         except BackendError as exc:
@@ -458,15 +480,33 @@ def main() -> None:
             render_vlm_failures(client, st.session_state.e2e_result)
             render_vlm_io(st.session_state.e2e_result)
             render_rag_inputs(st.session_state.e2e_result)
-            from apps.streamlit.app import render_report, render_retrieval
-
-            for candidate in st.session_state.e2e_result.get("candidates", []):
-                if candidate.get("report"):
-                    st.subheader(f"최종 리포트 · {candidate['event_id']}")
-                    render_report(candidate)
-                    render_retrieval(candidate)
+            render_final_reports(st.session_state.e2e_result)
         else:
             poll_job(client)
+
+
+def render_final_reports(result: dict[str, Any]) -> None:
+    from apps.streamlit.app import render_report, render_retrieval
+
+    st.subheader("최종 리포트")
+    if not result.get("candidates"):
+        st.info("사고 후보가 없어 생성할 리포트가 없습니다.")
+    for candidate in result.get("candidates") or []:
+        report = candidate.get("report") or {}
+        st.markdown(f"**{candidate.get('event_id')}**")
+        if report.get("generation_status") != "completed":
+            st.warning(f"리포트 상태: {report.get('generation_status', 'pending')}")
+        tabs = st.tabs(["기관별 최종 리포트", "검색 근거", "리포트 JSON"])
+        with tabs[0]:
+            render_report(candidate)
+        with tabs[1]:
+            render_retrieval(candidate)
+        with tabs[2]:
+            st.json(report)
+    st.download_button("전체 E2E 결과 JSON 다운로드",
+                       json.dumps(result, ensure_ascii=False, indent=2),
+                       file_name=f"e2e-{result.get('job_id', 'result')}.json",
+                       mime="application/json", key="e2e-result-download")
 
 
 if __name__ == "__main__":

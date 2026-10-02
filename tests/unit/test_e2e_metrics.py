@@ -45,6 +45,10 @@ def test_summarize_result_counts_modal_and_vlm_outputs():
         "vlm_observation_count": 2,
         "vlm_uncertainty_count": 1,
         "rag_input_count": 1,
+        "retrieval_completed_count": 0,
+        "citation_count": 0,
+        "report_completed_count": 0,
+        "agency_count": 0,
         "error_count": 1,
     }
 
