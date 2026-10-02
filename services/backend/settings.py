@@ -27,6 +27,8 @@ class Settings:
     rag_embedding_dimensions: int = 768
     rag_top_k: int = 8
     rag_min_similarity: float = 0.35
+    rag_store: str = "file"
+    rag_corpus_version: str = ""
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -64,4 +66,6 @@ class Settings:
             rag_embedding_dimensions=int(os.getenv("RAG_EMBEDDING_DIMENSIONS", "768")),
             rag_top_k=int(os.getenv("RAG_TOP_K", "8")),
             rag_min_similarity=float(os.getenv("RAG_MIN_SIMILARITY", "0.35")),
+            rag_store=os.getenv("RAG_STORE", "postgres"),
+            rag_corpus_version=os.getenv("RAG_CORPUS_VERSION", ""),
         )

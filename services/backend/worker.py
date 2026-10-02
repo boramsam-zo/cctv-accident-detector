@@ -80,6 +80,7 @@ class EnrichmentWorker:
         stage_errors = []
         if vlm["status"] == "failed":
             retrieval.update(status="skipped", reason_code="vlm_unavailable")
+            report["generation_status"] = "skipped"
         elif self.rag is not None:
             try:
                 retrieval = self.rag.retrieve(vlm["rag_input"], recorded_at=recorded_at)
@@ -88,7 +89,8 @@ class EnrichmentWorker:
                 retrieval.update(status="failed", reason_code=type(exc).__name__)
                 stage_errors.append({"stage": "rag", "code": type(exc).__name__,
                     "message": "문서 검색 실패: 인덱스·설정·연결을 확인하세요.", "retryable": True})
-                report.update(status="partial", limitations=["문서 검색에 실패했습니다.", *vlm.get("uncertainties", [])])
+                report.update(status="partial", generation_status="skipped",
+                              limitations=["문서 검색에 실패했습니다.", *vlm.get("uncertainties", [])])
             if retrieval["status"] != "failed":
                 try:
                     final = self.rag.generate_report(vlm["rag_input"], vlm, retrieval,

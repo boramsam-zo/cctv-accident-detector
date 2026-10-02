@@ -3,6 +3,7 @@ import hmac
 import json
 import base64
 import time
+import logging
 from io import BytesIO
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
@@ -203,6 +204,31 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
     def health():
         """프로세스의 기본 HTTP 응답 상태를 반환한다."""
         return {"status": "ok"}
+
+    @app.get("/api/v1/rag/status")
+    def rag_status(actor: str = Depends(auth)):
+        """Validate the retrieval store without making any Gemini requests."""
+        if not settings.rag_enabled:
+            return {"status": "disabled", "store": settings.rag_store}
+        from .rag import GeminiRag
+
+        rag = None
+        try:
+            rag = GeminiRag(None, settings)
+            rows, _, version = rag._index()
+            if not rows:
+                raise ValueError("empty_rag_corpus")
+            return {"status": "ready", "store": settings.rag_store,
+                    "chunk_count": len(rows), "corpus_version": version,
+                    "embedding_model": settings.rag_embedding_model,
+                    "dimensions": settings.rag_embedding_dimensions}
+        except Exception as exc:
+            logging.getLogger(__name__).error("RAG readiness failed: %s", type(exc).__name__)
+            return {"status": "failed", "store": settings.rag_store,
+                    "message": "검색 저장소·임베딩 설정을 확인하세요. 백엔드 로그에서 상세 원인을 확인할 수 있습니다."}
+        finally:
+            if rag is not None and rag.engine is not None:
+                rag.engine.dispose()
 
     @app.post("/api/v1/videos", status_code=201)
     def upload_video(

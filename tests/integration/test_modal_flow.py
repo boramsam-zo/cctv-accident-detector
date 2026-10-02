@@ -203,6 +203,65 @@ def test_modal_no_candidate_run_skips_gemini(tmp_path):
     assert result["detection_outcome"] == "no_candidates"
 
 
+def test_rag_readiness_is_authenticated_and_has_no_paid_calls(tmp_path):
+    app, _ = make_test_app(tmp_path)
+    client = TestClient(app)
+    assert client.get("/api/v1/rag/status").status_code == 401
+    response = client.get("/api/v1/rag/status", headers={"Authorization": "Bearer test"})
+    assert response.json() == {"status": "disabled", "store": "file"}
+
+
+def test_upload_to_grounded_report_with_three_gemini_requests(tmp_path):
+    from dataclasses import replace
+    from types import SimpleNamespace
+    from unittest.mock import Mock
+    from services.backend.gemini_vlm import GeminiVLM, GeminiResult
+    from services.backend.rag import GeminiRag, REPORT_PROMPT, ROOT, load_corpus
+
+    client = Mock()
+    client.models.embed_content.return_value = SimpleNamespace(embeddings=[SimpleNamespace(values=[1, 0])])
+    rows, digest = load_corpus(ROOT / "data/rag/chunks.jsonl")
+    index = tmp_path / "vectors.json"
+    index.write_text(json.dumps({"corpus_sha256": digest, "model": "gemini-embedding-001",
+        "dimensions": 2, "input_version": "embedding-input-v1",
+        "vectors": {r["chunk_id"]: [1, 0] for r in rows}}))
+
+    def generate(**kwargs):
+        if kwargs["config"]["response_schema"] is GeminiResult:
+            payload = {"description": "차량 충돌 후 차로 점유", "operator_confirmed": True,
+                "scene_conditions": {"day_time": "day", "weather": None}, "involved_objects": [],
+                "accident_type": "rear-end", "lane_blocked": True, "affected_person_visible": None,
+                "fire_visible": False, "observations": [], "uncertainties": ["부상 미확인"]}
+        else:
+            context = json.loads(kwargs["contents"][len(REPORT_PROMPT) + 1:])
+            citation = next(c for c in context["retrieval"]["citations"] if "경찰" in c["agencies"])
+            payload = {"summary": "교통 위험 확인 필요", "limitations": ["부상 미확인"], "agencies": [
+                {"agency": "경찰", "role": "교통 안전", "reason": "차로 점유",
+                 "selection_status": "conditional", "conditions_to_confirm": ["현장 위험 확인"],
+                 "citation_chunk_ids": [citation["chunk_id"]]}]}
+        return SimpleNamespace(text=json.dumps(payload, ensure_ascii=False))
+
+    client.models.generate_content.side_effect = generate
+    app, _ = make_test_app(tmp_path, gemini=GeminiVLM("test", "fake", client=client))
+    api = TestClient(app)
+    job_id, headers = submit_video_job(api)
+    assert app.state.get_modal_worker().tick()
+    assert app.state.get_modal_worker().tick()
+    worker = app.state.get_enrichment_worker()
+    worker.rag = GeminiRag(client, replace(worker.settings, rag_index_path=str(index), rag_embedding_dimensions=2))
+    assert worker.tick()
+    result = api.get(f"/api/v1/jobs/{job_id}", headers=headers).json()
+    assert result["status"] == "completed"
+    candidate = result["candidates"][0]
+    assert candidate["report"]["generation_status"] == "completed"
+    assert candidate["report"]["structured"]["agencies"][0]["agency"] == "경찰"
+    citation_ids = {c["chunk_id"] for c in candidate["retrieval"]["citations"]}
+    assert set(candidate["report"]["agencies"][0]["citation_chunk_ids"]) <= citation_ids
+    assert client.models.generate_content.call_count == 2
+    client.models.embed_content.assert_called_once()
+    assert not worker.tick()
+
+
 def test_modal_candidate_waits_for_manual_vlm_request(tmp_path):
     app, _ = make_test_app(tmp_path)
     client = TestClient(app)

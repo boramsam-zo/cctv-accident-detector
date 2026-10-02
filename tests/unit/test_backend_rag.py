@@ -1,7 +1,7 @@
 import hashlib
 import json
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock
 
 import pytest
 
@@ -62,6 +62,23 @@ def test_weak_similarity_returns_no_citations(tmp_path):
     rag, client, _ = context(tmp_path)
     client.models.embed_content.return_value.embeddings[0].values = [0, 1]
     assert rag.retrieve({"description": "차량 충돌"})["status"] == "insufficient_evidence"
+
+
+def test_postgres_search_uses_database_cosine_scores_and_excludes_expired(tmp_path):
+    rag, client, _ = context(tmp_path)
+    rows, vectors, digest = rag._index()
+    rag._index = Mock(return_value=(rows, vectors, digest))
+    rag.engine = MagicMock()
+    db = rag.engine.connect.return_value.__enter__.return_value
+    # File vectors are identical; PostgreSQL's actual scores must take precedence.
+    db.execute.return_value.all.return_value = [("police", 0.1), ("fire", 0.8), ("expired", 1.0)]
+    result = rag.retrieve({"description": "차량 충돌"}, recorded_at="2026-10-02")
+    assert [c["chunk_id"] for c in result["citations"]] == ["fire"]
+    assert result["citations"][0]["similarity"] == 0.8
+    assert result["retrieval_version"] == "pgvector-bm25-rrf-v1"
+    assert "<=>" in str(db.execute.call_args.args[0])
+    assert db.execute.call_args.args[1]["version"] == digest
+    client.models.embed_content.assert_called_once()
 
 
 @pytest.mark.parametrize("key,agency", [("invented", "경찰"), ("police", "소방")])

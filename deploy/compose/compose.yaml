@@ -23,6 +23,8 @@ x-app-common: &app-common
     GEMINI_MODELS: ${GEMINI_MODELS:-}
     MAX_MODEL_WEIGHT_BYTES: ${MAX_MODEL_WEIGHT_BYTES:-536870912}
     RAG_ENABLED: ${RAG_ENABLED:-true}
+    RAG_STORE: ${RAG_STORE:-postgres}
+    RAG_CORPUS_VERSION: ${RAG_CORPUS_VERSION:-}
     RAG_CORPUS_PATH: /app/data/rag/chunks.jsonl
     RAG_INDEX_PATH: /app/data/rag/embeddings.json
     RAG_EMBEDDING_MODEL: ${RAG_EMBEDDING_MODEL:-gemini-embedding-001}

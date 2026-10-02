@@ -101,11 +101,47 @@ class GeminiRag:
     def __init__(self, client, settings):
         self.client, self.settings = client, settings
         self._cache = None
+        self.engine = None
+        if settings.rag_store == "postgres":
+            from sqlalchemy import create_engine
+
+            self.engine = create_engine(settings.database_url, pool_pre_ping=True)
+
+    def _postgres_index(self):
+        from sqlalchemy import text
+
+        with self.engine.connect() as db:
+            corpus = db.execute(text("""SELECT * FROM rag_corpora
+                WHERE (:version = '' OR corpus_version = :version)
+                ORDER BY imported_at DESC, corpus_version LIMIT 1"""),
+                {"version": self.settings.rag_corpus_version}).mappings().first()
+            if not corpus:
+                raise ValueError("postgres_rag_corpus_missing")
+            if (corpus["embedding_model"] != self.settings.rag_embedding_model
+                    or corpus["dimensions"] != self.settings.rag_embedding_dimensions
+                    or corpus["input_version"] != "embedding-input-v1"):
+                raise ValueError("postgres_rag_configuration_mismatch")
+            saved = db.execute(text("SELECT payload, embedding::text AS vector FROM rag_chunks WHERE corpus_version=:version"),
+                {"version": corpus["corpus_version"]}).mappings().all()
+        if len(saved) != corpus["chunk_count"]:
+            raise ValueError("postgres_rag_count_mismatch")
+        rows, vectors = [], {}
+        for record in saved:
+            row = record["payload"]
+            if hashlib.sha256(row["content"].encode()).hexdigest() != row["content_sha256"]:
+                raise ValueError("postgres_rag_content_hash_mismatch")
+            rows.append(row)
+            vectors[row["chunk_id"]] = normalize(json.loads(record["vector"]), corpus["dimensions"])
+        return rows, vectors, corpus["corpus_version"]
 
     def _index(self):
         # Reload when either file changes; fail closed on a stale/mismatched index.
         if self.settings.rag_embedding_model != "gemini-embedding-001":
             raise ValueError("unsupported_rag_embedding_model")
+        if self.settings.rag_store == "postgres":
+            return self._postgres_index()
+        if self.settings.rag_store != "file":
+            raise ValueError("unsupported_rag_store")
         corpus_path = resolve_path(self.settings.rag_corpus_path)
         index_path = resolve_path(self.settings.rag_index_path)
         signature = tuple((p.stat().st_mtime_ns, p.stat().st_size) for p in (corpus_path, index_path))
@@ -167,6 +203,14 @@ class GeminiRag:
         df = Counter(term for doc in docs.values() for term in doc)
         query_terms = set(tokens(query))
         lexical, dense = {}, {}
+        if self.engine is not None:
+            from sqlalchemy import text
+
+            with self.engine.connect() as db:
+                dense = dict(db.execute(text("""SELECT chunk_id,
+                    1 - (embedding <=> CAST(:vector AS vector)) AS similarity
+                    FROM rag_chunks WHERE corpus_version=:version"""),
+                    {"vector": json.dumps(vector), "version": digest}).all())
         for row in eligible:
             key = row["chunk_id"]
             doc = docs[key]
@@ -177,7 +221,9 @@ class GeminiRag:
                     idf = math.log(1 + (len(docs) - df[term] + .5) / (df[term] + .5))
                     score += idf * freq * 2.2 / (freq + 1.2 * (.25 + .75 * sum(doc.values()) / average))
             lexical[key] = score
-            dense[key] = sum(a * b for a, b in zip(vector, vectors[key]))
+            if self.engine is None:
+                dense[key] = sum(a * b for a, b in zip(vector, vectors[key]))
+        dense = {row["chunk_id"]: dense[row["chunk_id"]] for row in eligible}
         rank = Counter()
         for scores in (lexical, dense):
             for position, key in enumerate(sorted(scores, key=scores.get, reverse=True)[:30], 1):
@@ -209,7 +255,8 @@ class GeminiRag:
                 "similarity": dense[key],
             })
         return {"status": "completed" if citations else "insufficient_evidence", "query": query,
-                "corpus_version": digest, "retrieval_version": "exact-bm25-rrf-v1",
+                "corpus_version": digest, "retrieval_version": (
+                    "pgvector-bm25-rrf-v1" if self.engine is not None else "exact-bm25-rrf-v1"),
                 "reference_date": reference_date,
                 "reference_date_basis": "recorded_at" if recorded_at else "generated_at; recording_date_unknown",
                 "citations": citations}
