@@ -1,0 +1,43 @@
+# RAG 데이터
+
+`chunks.jsonl`은 프로젝트 루트에서 이 폴더로 이동한 원본 코퍼스다.
+609개 중 통계 334개를 제외한 275개를 기관·대응자료 검색에 사용한다.
+원본 SHA256: `12cb84612820800131a1ad5c06d10cce0aa2d7d71f347ee4425d82e3de9395cc`.
+
+후보별 경로: 영상 분석 1회 → 질의 임베딩 1회 → 하이브리드 검색 → 최종 리포트 JSON 생성 1회.
+기관 종류·역할·선정 이유·확인 조건·근거만 표시한다. 신고·전화·관할 연락처는 생성하지 않는다.
+임베딩은 `gemini-embedding-001`, 기본 768차원으로 통일한다.
+작은 코퍼스에는 로컬 파일의 정확 벡터 검색 + 한국어 bigram BM25 + RRF를 사용한다.
+이번 구현은 pgvector DB 인덱스가 아니며 별도의 DB migration은 필요 없다.
+
+## 최초 실행
+
+기존 프로젝트 Python 3.13 환경에서 `GEMINI_API_KEY` 환경 변수를 설정한다.
+백엔드에 사용하는 .env도 별도의 로더 없이는 Python 명령에 자동 주입되지 않는다.
+
+```powershell
+.venv/Scripts/python.exe scripts/build_rag_index.py
+```
+
+프로젝트 `.env`에 키가 있으면 `--env-file .env` 옵션으로 읽을 수 있다.
+
+문서 임베딩은 위 명령으로 한 번 생성한다(275청크, 배치 64 기준 5회 요청).
+생성 파일 `embeddings.json`은 git에서 제외된다. 청크·모델·차원 변경 시 다시 생성한다.
+실시간 처리 중 인덱스가 없거나 코퍼스와 다르면 검색 실패와 partial 보고로 남긴다.
+코퍼스를 영상마다 임베딩하거나 실패를 근거 없음으로 숨기지 않는다.
+
+주요 설정: `RAG_ENABLED=true`, `RAG_CORPUS_PATH`, `RAG_INDEX_PATH`,
+`RAG_EMBEDDING_MODEL`, `RAG_EMBEDDING_DIMENSIONS`, `RAG_TOP_K`, `RAG_MIN_SIMILARITY`.
+유사도 기본 0.35와 top-k 8은 검수 전 실험값이며 품질 보장이 아니다.
+생성 모델은 현재 후보 VLM에 선택한 모델을 재사용한다.
+코퍼스와 인덱스는 읽기 전용으로 제공 가능하다. EC2/Docker에서는 아래 경로를 마운트한다.
+
+```yaml
+volumes:
+  - ../../data/rag:/app/data/rag:ro
+```
+
+정상 처리 기본 요청은 후보별 3회다. 근거 부족이면 빈 기관 배열의 최종 보고를 생성한다.
+VLM/검색 실패 시 다음 API 호출을 생략하고 원래 영상 근거를 보존한다.
+지원되는 재시도는 기존 VLM 실패 재시도이며 RAG/report 전용 재시도는 후속 작업이다.
+기관 조건의 의미·영상 관찰 정확성과 검색 품질은 별도 검수가 필요하다.
