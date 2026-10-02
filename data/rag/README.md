@@ -46,3 +46,20 @@ volumes:
 VLM/검색 실패 시 다음 API 호출을 생략하고 원래 영상 근거를 보존한다.
 지원되는 재시도는 기존 VLM 실패 재시도이며 RAG/report 전용 재시도는 후속 작업이다.
 기관 조건의 의미·영상 관찰 정확성과 검색 품질은 별도 검수가 필요하다.
+
+## PostgreSQL 저장
+
+`ca71f983b402` 마이그레이션이 pgvector와 `rag_corpora`, `rag_chunks`를 추가한다.
+`rag_chunks.embedding`은 `vector(768)`이며 원본 청크·출처·조건은 JSONB payload에 보존한다.
+버전별 복합 기본키로 과거 코퍼스를 보존하고 동일 데이터 재적재는 중복을 만들지 않는다.
+동일 코퍼스 해시에 다른 임베딩 파일을 덮어쓰는 요청은 거절한다.
+
+```powershell
+# DATABASE_URL이 PostgreSQL 연결을 가리키도록 환경에 설정한 뒤 실행
+.venv/Scripts/alembic.exe upgrade head
+.venv/Scripts/python.exe scripts/import_rag_postgres.py --env-file .env
+```
+
+적재는 기존 임베딩을 사용하며 Gemini를 호출하지 않는다. 현재 생성기는 파일 인덱스를
+읽는 검색 경로를 유지한다. PostgreSQL 저장과 검색 경로 전환은 별개의 작업이다.
+275청크 규모에서는 pgvector의 기본 정확 검색을 사용할 수 있어 HNSW는 생성하지 않는다.
