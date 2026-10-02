@@ -304,6 +304,9 @@ def poll_job(client: BackendClient) -> None:
 
 def main() -> None:
     st.set_page_config(page_title="CCTV E2E 리포트 테스트", layout="wide")
+    from apps.streamlit.app import inject_styles
+
+    inject_styles()
     st.title("영상 업로드부터 최종 리포트까지 E2E 테스트")
     st.caption("실제 백엔드의 영상 처리·문서 검색·기관별 리포트 생성 결과를 확인합니다.")
 

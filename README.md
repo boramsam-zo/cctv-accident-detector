@@ -64,6 +64,10 @@ flowchart LR
 
 ## 실행 안내
 
+팀원이 `develop`을 받아 Docker만으로 시작하려면 [팀 로컬 빠른 실행](docs/TEAM_LOCAL_QUICKSTART.md)을 참고하세요.
+클라우드 없이 화면만 확인하는 Compose와, `.env` 설정 후 DB·RAG 초기화까지 처리하는
+`scripts/start_local.ps1`을 제공합니다.
+
 ### 1. 설치와 테스트
 
 Python 3.13과 [uv](https://docs.astral.sh/uv/getting-started/installation/)를 설치한 뒤 저장소 루트에서 실행합니다. `uv sync`가 `.python-version`에 맞는 Python과 `.venv`를 준비하고, `uv.lock`에 고정된 버전을 설치합니다.

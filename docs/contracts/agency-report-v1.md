@@ -11,10 +11,17 @@
 - `summary`: 영상 관찰 요약.
 - `agencies[]`: `agency`, `role`, `reason`, `selection_status=supported/conditional`,
   `conditions_to_confirm[]`, `citation_chunk_ids[]`.
+  `transmission_items[]`: 기관에 전달할 관찰 사실과 미확인 사항.
+  `field_response_items[]`: `text`, `citation_chunk_ids[]`로 구성된 현장 대응 참고항목.
+  새 두 필드는 이전 보고서와 호환되도록 기본값이 빈 배열이다. 생성 프롬프트 버전은 `agency-report-v2`다.
 - `limitations[]`: 자료·관찰·적용 조건의 불확실성.
 
 기관은 코퍼스의 10개 분류 중 여러 개를 선택할 수 있다. JSON schema에서 추가 필드는 금지한다.
 서버는 인용 ID 존재·기관 태그 일치·기관 중복·조건부 선택의 확인 조건을 검증한다.
+현장 대응 참고항목의 인용은 해당 기관에 연결된 근거 ID의 부분집합이어야 한다.
+분석 화면의 기관별 안내에는 `supported`(현재 연락 대상)만 표시한다.
+`conditional` 기관은 카드에서 제외하되 원본 보고서와 JSON에는 보존한다.
+이전 보고서는 전달 사항에 장면 요약을, 현장 대응 참고에 연결된 문서 발췌를 표시한다.
 `operator_confirmed=false`인 장면은 기관 배열이 비어야 한다.
 구조·구급은 소방 역할에, 의료지원은 응급의료기관 역할에 표현한다.
 신고 방법·전화번호·직접 연락·특정 병원 선정은 출력 범위에 포함하지 않는다.

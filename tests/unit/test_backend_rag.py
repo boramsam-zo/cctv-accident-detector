@@ -112,6 +112,27 @@ def test_normal_scene_rejects_response_agencies(tmp_path):
                             {"citations": [{"chunk_id": "police", "agencies": ["경찰"]}]}, model="model")
 
 
+@pytest.mark.parametrize("reference,valid", [("police", True), ("fire", False)])
+def test_field_response_items_must_use_the_agencys_selected_citations(tmp_path, reference, valid):
+    rag, client, _ = context(tmp_path)
+    client.models.generate_content.return_value.text = json.dumps({
+        "summary": "차로 점유 관찰", "limitations": [], "agencies": [{
+            "agency": "경찰", "role": "교통 안전", "reason": "차로 점유",
+            "selection_status": "supported", "conditions_to_confirm": [],
+            "citation_chunk_ids": ["police"], "transmission_items": ["차로 점유 관찰; 부상 미확인"],
+            "field_response_items": [{"text": "경찰의 현장 안전조치 참고", "citation_chunk_ids": [reference]}]}]})
+    retrieval = {"citations": [{"chunk_id": "police", "agencies": ["경찰"]},
+                               {"chunk_id": "fire", "agencies": ["소방"]}]}
+    if valid:
+        report = rag.generate_report({}, {}, retrieval, model="model")
+        assert report["agencies"][0]["transmission_items"] == ["차로 점유 관찰; 부상 미확인"]
+        assert report["agencies"][0]["field_response_items"][0]["citation_chunk_ids"] == ["police"]
+        assert report["prompt_version"] == "agency-report-v2"
+    else:
+        with pytest.raises(ValueError, match="invalid_field_response_citation"):
+            rag.generate_report({}, {}, retrieval, model="model")
+
+
 def test_report_sdk_wire_json_uses_native_schema_and_keeps_strict_validation(tmp_path):
     import httpx
     from google import genai

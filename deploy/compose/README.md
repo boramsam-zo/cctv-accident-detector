@@ -1,6 +1,9 @@
 # EC2 개발용 Docker Compose
 
-목표 흐름은 Streamlit 영상 업로드 → FastAPI의 영상 버킷 저장·PostgreSQL 작업 등록 → Modal GPU의 X3D-S/YOLO11s 추론 → 같은 영상 버킷에 clip·frame·manifest 저장 → EC2 worker의 Gemini 호출 → 구조화 JSON 저장·화면 조회입니다. RAG 검색과 최종 LLM 보고서는 이번 구성에 포함하지 않습니다.
+팀원 PC에서 Docker만으로 실행하는 절차는 [팀 로컬 빠른 실행](../../docs/TEAM_LOCAL_QUICKSTART.md)을 참고하세요.
+로컬 시작 스크립트는 개발용 소스 마운트와 API 자동 reload를 함께 적용합니다.
+
+처리 흐름은 Streamlit 영상 업로드 → FastAPI의 영상 버킷 저장·PostgreSQL 작업 등록 → Modal GPU의 X3D-S/YOLO11s 추론 → 같은 영상 버킷에 clip·frame·manifest 저장 → worker의 Gemini 호출 → PostgreSQL RAG 검색 → 최종 보고서 저장·화면 조회입니다. RAG 코퍼스 최초 적재에는 `setup` 프로필의 `rag-init`을 사용하며, 전체 로컬 절차는 위 빠른 실행 안내를 따릅니다.
 
 | 서비스 | 역할 | GPU |
 | --- | --- | --- |

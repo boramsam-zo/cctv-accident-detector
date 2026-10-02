@@ -1,0 +1,71 @@
+{
+  "schema_version": "vlm-request-v2-proposal",
+  "example_only": true,
+  "event_id": "event-demo-mountain-fire",
+  "task": "extract_visual_facts_for_incident_response",
+  "camera_context": {
+    "camera_id": null,
+    "registered_location": null,
+    "coordinates": null,
+    "recorded_at": null,
+    "jurisdiction": null,
+    "legal_forest_adjacent_area": null,
+    "source": "backend_camera_registry"
+  },
+  "candidate_context": {
+    "candidate_source_time_seconds": 15.0,
+    "detector": "X3D-S",
+    "score": 0.83,
+    "score_semantics": "candidate_selection_score_not_verified_accident_probability"
+  },
+  "media": [
+    {
+      "asset_id": "ev-clip-1",
+      "part_index": 0,
+      "kind": "original_clip",
+      "mime_type": "video/mp4",
+      "source_start_seconds": 10.0,
+      "source_end_seconds": 20.0,
+      "clip_duration_seconds": 10.0,
+      "time_mapping": "source_seconds = source_start_seconds + clip_seconds",
+      "annotated": false
+    },
+    {
+      "asset_id": "ev-frame-1",
+      "part_index": 1,
+      "kind": "original_frame",
+      "mime_type": "image/jpeg",
+      "source_time_seconds": 15.0,
+      "annotated": false
+    }
+  ],
+  "detector_observations": {
+    "source": "YOLO11",
+    "objects": [],
+    "warning": "Repeated boxes across frames are not unique object counts. Detector labels and scores are hints, not confirmed facts."
+  },
+  "requested_observations": [
+    "accident_presence",
+    "accident_type",
+    "involved_objects",
+    "road_shape",
+    "visible_vegetation_near_fire",
+    "flames",
+    "smoke",
+    "debris",
+    "lane_blockage",
+    "affected_people_visible",
+    "visible_forest_burning",
+    "day_time",
+    "weather"
+  ],
+  "output_contract": {
+    "schema_version": "scene-facts-v2-proposal",
+    "language": "ko",
+    "fact_states": ["present", "absent", "unknown"],
+    "require_evidence_for_present_or_absent": true,
+    "unknown_is_not_absent": true,
+    "allowed_evidence_asset_ids": ["ev-clip-1", "ev-frame-1"],
+    "do_not_infer": ["exact_location", "legal_forest_adjacency", "injury_severity", "fault", "legal_violation", "agency_dispatch"]
+  }
+}

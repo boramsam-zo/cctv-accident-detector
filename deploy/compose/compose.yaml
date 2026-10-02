@@ -22,6 +22,9 @@ x-app-common: &app-common
     GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.6-flash}
     GEMINI_MODELS: ${GEMINI_MODELS:-}
     MAX_MODEL_WEIGHT_BYTES: ${MAX_MODEL_WEIGHT_BYTES:-536870912}
+    ANALYSIS_PROFILE_ID: ${ANALYSIS_PROFILE_ID:-received-yolo-x3ds-v1}
+    MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-104857600}
+    MAX_GEMINI_CLIP_BYTES: ${MAX_GEMINI_CLIP_BYTES:-18874368}
     RAG_ENABLED: ${RAG_ENABLED:-true}
     RAG_STORE: ${RAG_STORE:-postgres}
     RAG_CORPUS_VERSION: ${RAG_CORPUS_VERSION:-}
@@ -145,6 +148,15 @@ services:
       migrate:
         condition: service_completed_successfully
 
+  rag-init:
+    <<: *app-common
+    profiles: ["setup"]
+    command: ["python", "-m", "scripts.prepare_local_rag"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
+
   streamlit:
     <<: *app-common
     command: ["streamlit", "run", "apps/streamlit/app.py", "--server.address", "0.0.0.0", "--server.port", "8501", "--server.headless", "true"]
@@ -170,6 +182,17 @@ services:
         condition: service_healthy
     ports:
       - "127.0.0.1:8502:8502"
+
+  rag-index:
+    <<: *app-common
+    profiles: ["setup"]
+    command: ["python", "-m", "scripts.build_rag_index"]
+    environment:
+      <<: *app-environment
+      GEMINI_API_KEY: ${GEMINI_API_KEY:?Set GEMINI_API_KEY in .env}
+    volumes:
+      - ../../data/rag:/app/data/rag
+    restart: "no"
 
 volumes:
   postgres_data:

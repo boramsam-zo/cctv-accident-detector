@@ -90,7 +90,7 @@ def inject_styles() -> None:
         <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap');
         :root { --navy:#0f172a; --blue:#1d4ed8; --teal:#0f766e; --red:#dc2626; --line:#dbe3ef; }
-        .stApp { background:radial-gradient(circle at 72% -10%,#eaf1ff 0,transparent 34%),#f6f8fc; color:#0f172a; font-family:'Noto Sans KR',sans-serif; }
+        .stApp { color-scheme:light; background:radial-gradient(circle at 72% -10%,#eaf1ff 0,transparent 34%),#f6f8fc; color:#0f172a; font-family:'Noto Sans KR',sans-serif; }
         [data-testid="stHeader"] { display:none; }
         [data-testid="stSidebar"] { background: #0f1f36; border-right: 1px solid #203653; }
         [data-testid="stSidebar"] * { color: #e8eef8; }
@@ -178,8 +178,29 @@ def inject_styles() -> None:
         div[data-baseweb="tab-highlight"] { background-color:#1d4ed8 !important; }
         div[data-testid="stNotification"] { border-radius:8px; }
         [data-testid="stProgressBar"] > div > div { background:linear-gradient(90deg,#2563eb,#06b6d4); }
-        .stButton button, .stFormSubmitButton button { border-radius:5px; }
-        .stButton button[kind="primary"], .stFormSubmitButton button[kind="primary"] { background:#1d4ed8; border-color:#1d4ed8; }
+        /* Native widgets must use the same light palette as the workspace. */
+        [data-testid="stMain"] :is(.stButton, .stFormSubmitButton, .stDownloadButton, .stLinkButton, .stFileUploader) :is(button, a) {
+            background:#fff; border:1px solid #cbd5e1; color:#334155; border-radius:5px;
+        }
+        [data-testid="stMain"] :is(.stButton, .stFormSubmitButton, .stDownloadButton, .stLinkButton, .stFileUploader) :is(button, a):hover {
+            background:#eff6ff; border-color:#2563eb; color:#1d4ed8;
+        }
+        [data-testid="stMain"] :is(.stButton, .stFormSubmitButton) button[kind="primary"] {
+            background:#1d4ed8; border-color:#1d4ed8; color:#fff;
+        }
+        [data-testid="stMain"] :is(.stButton, .stFormSubmitButton) button[kind="primary"]:hover {
+            background:#1e40af; border-color:#1e40af; color:#fff;
+        }
+        [data-testid="stMain"] button:disabled { opacity:.5; cursor:not-allowed; }
+        [data-testid="stMain"] :is(button, a):focus-visible { outline:2px solid #2563eb; outline-offset:3px; }
+        .agency-card-head { display:flex; justify-content:space-between; align-items:flex-start; gap:.6rem; margin-bottom:.35rem; }
+        .agency-name { font-size:.95rem; font-weight:700; color:#0f172a; }
+        .agency-dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:#2563eb; margin-right:.45rem; }
+        .agency-fire .agency-dot { background:#e11d48; }
+        .agency-forest .agency-dot { background:#d97706; }
+        .agency-badge { flex-shrink:0; background:#eff6ff; color:#1d4ed8; border-radius:4px; padding:.2rem .4rem; font-size:.68rem; font-weight:700; }
+        .agency-badge.conditional { background:#fffbeb; color:#92400e; }
+        [class*="st-key-agency-response-"] { background:#fff; border-radius:8px; }
         @media (max-width: 900px) { .metrics-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
         @media (max-width: 760px) { .system-state { display:none; } .block-container { padding:.7rem; } }
         </style>
@@ -746,24 +767,78 @@ def render_review_form(candidate: dict[str, Any], result: dict[str, Any]) -> Non
             st.success("데모 세션에 검토 결과를 저장했습니다.")
 
 
-def render_report(candidate: dict[str, Any]) -> None:
+def render_agency_response(candidate: dict[str, Any]) -> None:
+    """Render the report's evidence-backed agency recommendations as cards."""
+    report = candidate.get("report") or {}
+    st.markdown("#### 기관별 대응 안내")
+    st.caption("연락 대상 기관별 전달 사항과 출처 기반 현장 대응 참고")
+    generation_status = report.get("generation_status", report.get("status", "pending"))
+    if generation_status in {"pending", "running"}:
+        st.info("분석 결과와 문서 근거를 바탕으로 기관별 대응 안내를 준비하고 있습니다.")
+        return
+    if generation_status in {"failed", "skipped"}:
+        st.warning("기관별 대응 안내를 생성하지 못했습니다. 사고 분석과 문서 검색 상태를 확인하세요.")
+        return
+    agencies = [agency for agency in (report.get("agencies") or [])
+                if agency.get("selection_status") == "supported"]
+    if not agencies:
+        st.info("현재 관찰·문서 근거로 선정된 연락 대상 기관이 없습니다. 추가 확인이 필요한 조건부 기관은 표시하지 않습니다.")
+        return
+    citations = {c.get("chunk_id"): c for c in (candidate.get("retrieval") or {}).get("citations", [])}
+    for index, agency in enumerate(agencies):
+        name = str(agency.get("agency", "기관"))
+        accent = "agency-fire" if name == "소방" else "agency-forest" if "산림" in name else ""
+        with st.container(border=True, key=f"agency-response-{candidate.get('event_id', 'report')}-{index}"):
+            st.markdown(
+                f'<div class="agency-card-head {accent}"><span class="agency-name">'
+                f'<span class="agency-dot"></span>{escape(name)}</span>'
+                '<span class="agency-badge">연락 대상</span></div>',
+                unsafe_allow_html=True,
+            )
+            st.caption(f"담당 역할 · {agency.get('role', '')}")
+            st.markdown("**전달 사항**")
+            transmission_items = agency.get("transmission_items") or []
+            if not transmission_items:
+                summary = (candidate.get("vlm") or {}).get("summary") or report.get("text")
+                transmission_items = [summary] if summary else []
+            for item in transmission_items:
+                st.write(f"• {item}")
+            if not transmission_items:
+                st.caption("전달할 장면 정보가 아직 준비되지 않았습니다.")
+            for condition in agency.get("conditions_to_confirm", []):
+                st.caption(f"확인 필요 · {condition}")
+            st.markdown("**현장 대응 참고항목**")
+            agency_citation_ids = set(agency.get("citation_chunk_ids", []))
+            field_items = agency.get("field_response_items") or []
+            if not field_items:
+                field_items = [{"text": " ".join(str(citations[key].get("excerpt") or "").split()),
+                                "citation_chunk_ids": [key]}
+                               for key in agency.get("citation_chunk_ids", []) if key in citations]
+            shown = False
+            for item in field_items:
+                keys = item.get("citation_chunk_ids") or []
+                if not item.get("text") or not keys or not set(keys) <= agency_citation_ids or any(key not in citations for key in keys):
+                    continue
+                st.write(f"• {item['text']}")
+                shown = True
+                for key in keys:
+                    citation = citations[key]
+                    st.caption(f"근거 · {citation.get('title') or key} · {citation.get('section') or key}")
+                    for condition in citation.get("application_conditions", []):
+                        st.caption(f"적용 조건 · {condition}")
+            if not shown:
+                st.caption("현장 대응 근거 미확인 · 구체 조치가 생성되지 않았습니다.")
+
+
+def render_report(candidate: dict[str, Any], *, show_agencies: bool = True) -> None:
     report = candidate.get("report") or {"status": "pending"}
     if report["status"] in {"pending", "running"}:
         st.info("보고 초안을 준비하고 있습니다.")
     else:
         st.markdown(f'<div class="analysis-box"><p>{escape(str(report.get("text") or "보고 내용이 없습니다."))}</p></div>', unsafe_allow_html=True)
         if "agencies" in report:
-            st.subheader("필요한 연락 기관")
-            if not report["agencies"]:
-                st.caption("현재 관찰·문서 근거로 선정된 기관이 없습니다. 필요 기관이 없다는 확정 판단은 아닙니다.")
-            for agency in report["agencies"]:
-                label = "조건부 검토" if agency["selection_status"] == "conditional" else "관찰 근거 있음"
-                st.markdown(f"**{agency['agency']}** · {label}")
-                st.write(f"담당 역할: {agency['role']}")
-                st.write(f"선정 이유: {agency['reason']}")
-                for condition in agency.get("conditions_to_confirm", []):
-                    st.caption(f"확인 필요 · {condition}")
-                st.caption("근거 청크 · " + ", ".join(agency["citation_chunk_ids"]))
+            if show_agencies:
+                render_agency_response(candidate)
             st.download_button("리포트 JSON 다운로드", json.dumps(report, ensure_ascii=False, indent=2),
                                file_name=f"{report.get('report_id', 'report')}.json", mime="application/json")
         for limitation in report.get("limitations", []):
@@ -828,33 +903,32 @@ def select_candidate(result: dict[str, Any]) -> dict[str, Any] | None:
 
 
 def render_result(result: dict[str, Any]) -> None:
-    # 영상을 첫 화면 상단에 크게 두고, 검토에 바로 필요한 정보만 오른쪽에 둔다.
+    render_job_summary(result)
+    candidate = select_candidate(result)
     video_column, side_column = st.columns([7.4, 4.6], gap="medium")
-    with side_column:
-        render_job_summary(result)
-        candidate = select_candidate(result)
+    with video_column:
+        render_video_console(candidate, result)
         if candidate:
+            st.markdown("#### 사고 장면 분석")
             render_ai_analysis(candidate)
-            render_review_form(candidate, result)
+            st.markdown("#### 대응 매뉴얼·법령 근거")
+            render_retrieval(candidate)
+            with st.expander("분석 보고서 및 JSON 다운로드"):
+                render_report(candidate, show_agencies=False)
         elif result["detection_outcome"] == "no_candidates":
             st.success("분석된 범위에서 사고 의심 후보가 없습니다.")
         else:
             st.info("현재 표시할 사고 의심 후보가 없습니다.")
-    with video_column:
-        render_video_console(candidate, result)
-
-    # 보고서, 문서 근거, 처리 상세는 영상 아래 탭으로 내린다.
-    st.markdown('<div style="height:.6rem"></div>', unsafe_allow_html=True)
+    with side_column:
+        if candidate:
+            render_agency_response(candidate)
+            st.markdown("#### 검토자 최종 판단")
+            render_review_form(candidate, result)
+        else:
+            st.markdown("#### 기관별 대응 안내")
+            st.caption("사고 의심 후보와 문서 근거가 준비되면 기관별 안내가 표시됩니다.")
     pipeline_label = "처리 현황" + (f" · 오류 {len(result['errors'])}" if result["errors"] else "")
-    if candidate:
-        report_tab, retrieval_tab, pipeline_tab = st.tabs(["AI 사고 분석 보고서", "대응자료·법령 근거", pipeline_label])
-        with report_tab:
-            render_report(candidate)
-        with retrieval_tab:
-            render_retrieval(candidate)
-    else:
-        (pipeline_tab,) = st.tabs([pipeline_label])
-    with pipeline_tab:
+    with st.expander(pipeline_label):
         render_pipeline(result)
 
 
