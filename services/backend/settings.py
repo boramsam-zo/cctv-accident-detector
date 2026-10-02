@@ -20,6 +20,13 @@ class Settings:
     s3_key_prefix: str = ""
     gemini_models: tuple[str, ...] = ()
     max_model_weight_bytes: int = 512 * 1024 * 1024
+    rag_enabled: bool = False
+    rag_corpus_path: str = "data/rag/chunks.jsonl"
+    rag_index_path: str = "data/rag/embeddings.json"
+    rag_embedding_model: str = "gemini-embedding-001"
+    rag_embedding_dimensions: int = 768
+    rag_top_k: int = 8
+    rag_min_similarity: float = 0.35
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -50,4 +57,11 @@ class Settings:
                            if os.getenv("S3_KEY_PREFIX", "").strip("/") else ""),
             gemini_models=configured_models,
             max_model_weight_bytes=int(os.getenv("MAX_MODEL_WEIGHT_BYTES", str(512 * 1024 * 1024))),
+            rag_enabled=os.getenv("RAG_ENABLED", "true").lower() in {"true", "1", "yes"},
+            rag_corpus_path=os.getenv("RAG_CORPUS_PATH", "data/rag/chunks.jsonl"),
+            rag_index_path=os.getenv("RAG_INDEX_PATH", "data/rag/embeddings.json"),
+            rag_embedding_model=os.getenv("RAG_EMBEDDING_MODEL", "gemini-embedding-001"),
+            rag_embedding_dimensions=int(os.getenv("RAG_EMBEDDING_DIMENSIONS", "768")),
+            rag_top_k=int(os.getenv("RAG_TOP_K", "8")),
+            rag_min_similarity=float(os.getenv("RAG_MIN_SIMILARITY", "0.35")),
         )

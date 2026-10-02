@@ -157,7 +157,12 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
         """Gemini 클라이언트와 저장소를 연결한 후처리 worker를 만든다."""
         if app.state.gemini is None:
             app.state.gemini = GeminiVLM(settings.gemini_api_key, settings.gemini_model)
-        return EnrichmentWorker(sessions, get_storage(), app.state.gemini, settings)
+        from .rag import GeminiRag
+
+        if settings.rag_enabled and not hasattr(app.state, "rag"):
+            app.state.rag = GeminiRag(app.state.gemini.client, settings)
+        return EnrichmentWorker(sessions, get_storage(), app.state.gemini, settings,
+                                rag=getattr(app.state, "rag", None) if settings.rag_enabled else None)
 
     app.state.get_enrichment_worker = get_enrichment_worker
 

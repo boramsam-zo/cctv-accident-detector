@@ -100,5 +100,90 @@ def test_worker_rejects_modified_evidence_before_gemini(enrichment_context):
         assert event.data["vlm"]["reason_code"] == "ValueError"
         assert event.data["vlm"]["error_message"] == "evidence_sha256_mismatch"
         assert "rag_input" not in event.data
-        assert event.data["retrieval"]["status"] == "insufficient_evidence"
+        assert event.data["retrieval"]["status"] == "skipped"
         assert run.status == "partial"
+
+
+@pytest.mark.parametrize("failure", [None, "rag", "report"])
+def test_rag_report_flow_preserves_results_and_partial_status(enrichment_context, failure):
+    worker, sessions, _, gemini = enrichment_context
+    rag = Mock()
+    worker.rag = rag
+    gemini.analyze.return_value = {"status": "completed", "summary": "영상 관찰",
+        "uncertainties": [], "rag_input": {"description": "영상 관찰"}}
+    rag.retrieve.return_value = {"status": "completed", "corpus_version": "v1",
+        "citations": [{"document_id": "doc-1", "chunk_id": "chunk-1"}]}
+    rag.generate_report.return_value = {"summary": "근거 연결 보고", "limitations": [],
+        "agencies": [{"agency": "경찰", "role": "교통 안전", "reason": "차로 장애",
+                      "citation_chunk_ids": ["chunk-1"]}]}
+    if failure == "rag":
+        rag.retrieve.side_effect = ValueError("index missing")
+    if failure == "report":
+        rag.generate_report.side_effect = ValueError("invalid citation")
+    assert worker.tick()
+    gemini.analyze.assert_called_once()
+    rag.retrieve.assert_called_once()
+    with sessions() as db:
+        event = db.get(Event, "event-1")
+        run = db.get(Run, "run-1")
+        assert event.data["vlm"]["summary"] == "영상 관찰"
+        assert run.status == ("partial" if failure else "completed")
+        assert db.query(Report).count() == 1
+        if failure == "rag":
+            rag.generate_report.assert_not_called()
+            assert run.result["stages"]["rag"]["status"] == "failed"
+        else:
+            rag.generate_report.assert_called_once()
+            assert event.data["retrieval"]["citations"]
+        if failure == "report":
+            assert run.result["stages"]["report"]["status"] == "failed"
+        if not failure:
+            assert event.data["report"]["agencies"][0]["agency"] == "경찰"
+            assert event.data["report"]["citation_chunk_ids"] == ["chunk-1"]
+    assert worker.tick() is False
+
+
+def test_complete_candidate_makes_two_generation_calls_and_one_embedding(enrichment_context, tmp_path):
+    import json
+    from dataclasses import replace
+    from types import SimpleNamespace
+
+    from services.backend.gemini_vlm import GeminiVLM, GeminiResult
+    from services.backend.rag import GeminiRag, REPORT_PROMPT, ROOT, load_corpus
+
+    worker, sessions, _, _ = enrichment_context
+    rows, digest = load_corpus(ROOT / "data/rag/chunks.jsonl")
+    index = tmp_path / "embeddings.json"
+    index.write_text(json.dumps({"corpus_sha256": digest, "model": "gemini-embedding-001",
+        "dimensions": 2, "input_version": "embedding-input-v1",
+        "vectors": {r["chunk_id"]: [1, 0] for r in rows}}))
+    settings = replace(worker.settings, rag_index_path=str(index), rag_embedding_dimensions=2)
+    client = Mock()
+    client.models.embed_content.return_value = SimpleNamespace(embeddings=[SimpleNamespace(values=[1, 0])])
+
+    def generate(**kwargs):
+        if kwargs["config"]["response_schema"] is GeminiResult:
+            payload = {"description": "차량 충돌 후 차로가 막혀 있습니다.", "operator_confirmed": True,
+                "scene_conditions": {"day_time": "day", "weather": None}, "involved_objects": [],
+                "accident_type": "rear-end", "lane_blocked": True, "affected_person_visible": None,
+                "fire_visible": False, "observations": [], "uncertainties": ["부상 미확인"]}
+        else:
+            context = json.loads(kwargs["contents"][len(REPORT_PROMPT) + 1:])
+            citation = next(c for c in context["retrieval"]["citations"] if "경찰" in c["agencies"])
+            payload = {"summary": "차로 점유 관찰", "limitations": ["부상 미확인"], "agencies": [
+                {"agency": "경찰", "role": "교통 안전", "reason": "차로 점유",
+                 "selection_status": "conditional", "conditions_to_confirm": ["현장 위험 확인"],
+                 "citation_chunk_ids": [citation["chunk_id"]]}]}
+        return SimpleNamespace(text=json.dumps(payload, ensure_ascii=False))
+
+    client.models.generate_content.side_effect = generate
+    worker.gemini = GeminiVLM("test", "test-model", client=client)
+    worker.rag = GeminiRag(client, settings)
+    assert worker.tick()
+    assert client.models.generate_content.call_count == 2
+    client.models.embed_content.assert_called_once()
+    with sessions() as db:
+        event = db.get(Event, "event-1")
+        assert event.data["report"]["structured"]["agencies"][0]["agency"] == "경찰"
+        assert event.data["report"]["corpus_version"] == digest
+        assert db.get(Run, "run-1").status == "completed"

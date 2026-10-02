@@ -22,6 +22,15 @@ x-app-common: &app-common
     GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.6-flash}
     GEMINI_MODELS: ${GEMINI_MODELS:-}
     MAX_MODEL_WEIGHT_BYTES: ${MAX_MODEL_WEIGHT_BYTES:-536870912}
+    RAG_ENABLED: ${RAG_ENABLED:-true}
+    RAG_CORPUS_PATH: /app/data/rag/chunks.jsonl
+    RAG_INDEX_PATH: /app/data/rag/embeddings.json
+    RAG_EMBEDDING_MODEL: ${RAG_EMBEDDING_MODEL:-gemini-embedding-001}
+    RAG_EMBEDDING_DIMENSIONS: ${RAG_EMBEDDING_DIMENSIONS:-768}
+    RAG_TOP_K: ${RAG_TOP_K:-8}
+    RAG_MIN_SIMILARITY: ${RAG_MIN_SIMILARITY:-0.35}
+  volumes:
+    - ../../data/rag:/app/data/rag:ro
   restart: unless-stopped
 
 services:
