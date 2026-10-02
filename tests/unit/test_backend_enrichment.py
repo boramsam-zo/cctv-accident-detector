@@ -162,7 +162,7 @@ def test_complete_candidate_makes_two_generation_calls_and_one_embedding(enrichm
     client.models.embed_content.return_value = SimpleNamespace(embeddings=[SimpleNamespace(values=[1, 0])])
 
     def generate(**kwargs):
-        if kwargs["config"]["response_schema"] is GeminiResult:
+        if kwargs["config"].get("response_schema") is GeminiResult:
             payload = {"description": "차량 충돌 후 차로가 막혀 있습니다.", "operator_confirmed": True,
                 "scene_conditions": {"day_time": "day", "weather": None}, "involved_objects": [],
                 "accident_type": "rear-end", "lane_blocked": True, "affected_person_visible": None,

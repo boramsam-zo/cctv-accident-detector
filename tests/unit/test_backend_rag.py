@@ -110,3 +110,35 @@ def test_normal_scene_rejects_response_agencies(tmp_path):
     with pytest.raises(ValueError, match="normal_scene_has_response_agencies"):
         rag.generate_report({"operator_confirmed": False}, {},
                             {"citations": [{"chunk_id": "police", "agencies": ["경찰"]}]}, model="model")
+
+
+def test_report_sdk_wire_json_uses_native_schema_and_keeps_strict_validation(tmp_path):
+    import httpx
+    from google import genai
+    from pydantic import ValidationError
+
+    captured = []
+    payload = {"summary": "scene", "agencies": [], "limitations": []}
+
+    def respond(request):
+        captured.append(json.loads(request.content))
+        return httpx.Response(200, json={"candidates": [{"content": {
+            "role": "model", "parts": [{"text": json.dumps(payload)}]}}]})
+
+    client = genai.Client(api_key="test", http_options={
+        "client_args": {"transport": httpx.MockTransport(respond)}})
+    rag, _, _ = context(tmp_path)
+    rag.client = client
+    try:
+        assert rag.generate_report({}, {}, {"citations": []}, model="test-model")["summary"] == "scene"
+        config = captured[0]["generationConfig"]
+        assert "responseSchema" not in config
+        schema = config["responseJsonSchema"]
+        assert schema["additionalProperties"] is False
+        assert schema["$defs"]["AgencyRecommendation"]["additionalProperties"] is False
+        assert "additional_properties" not in json.dumps(config)
+        payload["unexpected"] = "reject"
+        with pytest.raises(ValidationError):
+            rag.generate_report({}, {}, {"citations": []}, model="test-model")
+    finally:
+        client.close()

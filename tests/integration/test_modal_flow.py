@@ -227,7 +227,7 @@ def test_upload_to_grounded_report_with_three_gemini_requests(tmp_path):
         "vectors": {r["chunk_id"]: [1, 0] for r in rows}}))
 
     def generate(**kwargs):
-        if kwargs["config"]["response_schema"] is GeminiResult:
+        if kwargs["config"].get("response_schema") is GeminiResult:
             payload = {"description": "차량 충돌 후 차로 점유", "operator_confirmed": True,
                 "scene_conditions": {"day_time": "day", "weather": None}, "involved_objects": [],
                 "accident_type": "rear-end", "lane_blocked": True, "affected_person_visible": None,

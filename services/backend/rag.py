@@ -267,7 +267,10 @@ class GeminiRag:
             contents=REPORT_PROMPT + "\n" + json.dumps({"scene": rag_input,
                 "observations": vlm.get("observations", []), "uncertainties": vlm.get("uncertainties", []),
                 "retrieval": retrieval}, ensure_ascii=False),
-            config={"response_mime_type": "application/json", "response_schema": FinalReport},
+            # Native JSON Schema preserves additionalProperties rather than
+            # converting it to the unsupported responseSchema field.
+            config={"response_mime_type": "application/json",
+                    "response_json_schema": FinalReport.model_json_schema()},
         )
         report = FinalReport.model_validate_json(response.text)
         citations = {c["chunk_id"]: c for c in retrieval["citations"]}
