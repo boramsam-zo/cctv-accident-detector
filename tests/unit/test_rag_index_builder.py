@@ -16,9 +16,10 @@ def test_rate_limit_retries_after_server_delay():
     assert client.models.embed_content.call_count == 2
 
 
-def test_auth_error_is_not_retried():
+@pytest.mark.parametrize("code", [403, 429])
+def test_permanent_or_unclassified_quota_error_is_not_retried(code):
     client = Mock()
-    client.models.embed_content.side_effect = APIError(403, {})
+    client.models.embed_content.side_effect = APIError(code, {})
     with patch("scripts.build_rag_index.time.sleep") as sleep, pytest.raises(APIError):
         embed_batch(client, model="model", contents=["text"], config={})
     sleep.assert_not_called()

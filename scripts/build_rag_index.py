@@ -22,6 +22,9 @@ def embed_batch(client, *, model, contents, config):
                 raise
             delay = min(60, 20 * (attempt + 1))
             details = (exc.details or {}).get("error", {}).get("details", [])
+            if exc.code == 429 and not any(d.get("@type", "").endswith("RetryInfo") for d in details):
+                # A daily/account quota may not recover by waiting a minute.
+                raise
             for detail in details:
                 if detail.get("@type", "").endswith("RetryInfo"):
                     delay = min(60, max(delay, float(detail["retryDelay"].rstrip("s")) + 1))
@@ -45,7 +48,10 @@ def main():
     parser.add_argument("--output")
     parser.add_argument("--model")
     parser.add_argument("--dimensions", type=int)
+    parser.add_argument("--batch-size", type=int, default=64)
     args = parser.parse_args()
+    if not 1 <= args.batch_size <= 100:
+        parser.error("--batch-size must be between 1 and 100")
     if args.env_file:
         for line in args.env_file.read_text(encoding="utf-8-sig").splitlines():
             line = line.strip()
@@ -78,8 +84,8 @@ def main():
     client = genai.Client(api_key=os.environ["GEMINI_API_KEY"],
                          http_options=types.HttpOptions(timeout=60000))
     pending = [row for row in rows if row["chunk_id"] not in vectors]
-    for offset in range(0, len(pending), 64):
-        batch = pending[offset:offset + 64]
+    for offset in range(0, len(pending), args.batch_size):
+        batch = pending[offset:offset + args.batch_size]
         response = embed_batch(client, model=args.model,
             contents=[row["embedding_input"] for row in batch],
             config=types.EmbedContentConfig(task_type="RETRIEVAL_DOCUMENT", output_dimensionality=args.dimensions))
