@@ -4,7 +4,11 @@
 
 작성일: 2026-09-27
 
-상태: 공개 API와 Modal 호출 코드 구현, 실제 GPU·S3·Gemini E2E 검증 전
+2026-10-04 확장: `/api/v1/vlm-options`의 기본 프롬프트 ID는 `scene-facts-v2`입니다.
+완료 후보의 `vlm.raw_output`, `vlm.request.input`, `vlm.validation`, `rag_input.features`에는
+[VLM 영상 관찰 계약](../VLM_FACTS_VALIDATION.md)이 적용됩니다. 기존 결과 JSON도 계속 조회할 수 있습니다.
+
+상태: 공개 API·Modal·S3·Gemini·RAG 연결 구현 및 실제 서비스 E2E 확인. 검증 범위는 [진행 기록](../PROGRESS.md) 참고.
 기준: [PRD](../../PROJECT_BRIEF.md) · [공통 서비스 계약](service_contract.md) · [가상 응답](demo-analysis-cases-v0.2.json)
 
 이 문서는 Streamlit과 FastAPI 사이의 HTTP 계약을 정의한다. BE 작업 프로세스의 Modal 제출·S3 결과 회수는

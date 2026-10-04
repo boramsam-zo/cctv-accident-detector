@@ -44,3 +44,14 @@ def test_elapsed_seconds_uses_frozen_completion_time():
     with patch.object(e2e_test.st, "session_state", state), \
             patch.object(e2e_test.time, "monotonic", return_value=99.0):
         assert e2e_test.elapsed_seconds() == 5.5
+
+
+def test_scene_facts_io_renders_and_exports_job_json(scene_payload):
+    from streamlit.testing.v1 import AppTest
+    result = {"candidates": [{"event_id": "ev", "vlm": {"status": "completed",
+              "raw_output": scene_payload(), "request": {"input": {"schema_version": "vlm-input-v2"}}}}]}
+    app = AppTest.from_string("from apps.streamlit.e2e_test import render_vlm_io\nrender_vlm_io(" + repr(result) + ")").run(timeout=20)
+    assert not app.exception
+    assert len(app.json) == 2
+    assert len(app.get("download_button")) == 1
+    assert any("정확도" in caption.value for caption in app.caption)

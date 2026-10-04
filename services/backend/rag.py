@@ -107,9 +107,65 @@ field_response_items에는 해당 기관의 검색 근거에서 현장 대응에
 원문의 조치 주체·적용 조건·예외를 보존하세요. 경찰 협조를 소방의 피난 명령 권한과 혼동하지 마세요.
 관련 근거가 없는 구체 조치는 생성하지 말고 field_response_items를 빈 배열로 두세요.
 operator_confirmed=false이면 사고 대응 기관은 빈 배열로 두세요.
+operator_confirmed는 VLM의 사고 관찰 판정이며 운전자 확인이나 사람의 최종 검토 결과가 아닙니다.
+보고서 문장에는 내부 JSON 필드명이나 모델 설정을 노출하지 말고 관찰 사실과 미확인 사항으로 설명하세요.
 지침 요약은 원문 인용이라고 표현하지 말고, 과실·위반·원인·피해를 확정하지 마세요.
 판례가 없는 자료이며 자료의 현행성을 독립 검증한 것으로 표현하지 마세요.
+scene-facts-v2의 features에서 unknown은 미확인, absent는 해당 관찰 범위에서 부재입니다.
+연기만으로 불꽃·차량 화재·산림 연소를 확정하지 마세요. visible_forest_burning이 present가 아니면
+actual_forest_fire_required 근거를 현재 산불 대응의 확정 근거로 사용하지 마세요.
+application_stage, conditional_actions, application_conditions, conditions_status와 원문 예외를 함께 확인하세요.
 summary는 영상 관찰을 요약하고 limitations에는 남은 불확실성을 기록하세요."""
+
+
+FEATURE_QUERY_TERMS = {
+    "mountain_road": "산간 도로 사고",
+    "visible_vegetation_near_fire": "화재 인접 식생 산불 위험 신고 적용 조건",
+    "flames": "차량 불꽃 화재 소방 대응",
+    "smoke": "연기 관찰 화재 여부 확인",
+    "debris": "도로 파편 장애물 제거 도로관리기관",
+    "lane_blockage": "차로 점유 교통 위험 도로 장애",
+    "affected_people_visible": "사고 영향을 받은 사람 구조 구급 필요성 확인",
+    "visible_forest_burning": "산림 연소 산불 진화 산림기관 대응",
+}
+
+
+def build_retrieval_query(rag_input):
+    terms = ["기관별 대응 역할과 적용 조건"]
+    if rag_input.get("schema_version") == "scene-facts-v2":
+        # Free prose and unknown/absent features must not become affirmative search facts.
+        for name, term in FEATURE_QUERY_TERMS.items():
+            fact = (rag_input.get("features") or {}).get(name, {})
+            if fact.get("state") == "present" and fact.get("evidence"):
+                terms.append(term)
+        presence = rag_input.get("accident_presence") or {}
+        if presence.get("state") == "present" and presence.get("evidence"):
+            terms.append("영상에서 사고 확인")
+        else:
+            terms.append("사고 여부 확인 필요")
+        object_terms = {"Pedestrian": "보행자 관련", "Car": "승용차", "Truck": "화물차",
+                        "Bus": "버스", "Motorcycle": "이륜차", "Bicycle": "자전거"}
+        for item in rag_input.get("involved_objects") or []:
+            if item.get("evidence") and item.get("type") in object_terms:
+                terms.append(object_terms[item["type"]])
+        environment = rag_input.get("scene_conditions") or {}
+        for field, names in (("day_time", {"day": "주간", "night": "야간"}),
+                             ("weather", {"clear": "맑음", "cloudy": "흐림", "rain": "비", "snow": "눈", "fog": "안개"})):
+            if environment.get(f"{field}_evidence") and environment.get(field) in names:
+                terms.append(names[environment[field]])
+    else:
+        terms.insert(0, rag_input["description"])
+        for field, term in (("lane_blocked", FEATURE_QUERY_TERMS["lane_blockage"]),
+                            ("affected_person_visible", FEATURE_QUERY_TERMS["affected_people_visible"]),
+                            ("fire_visible", "차량 화재 소방 대응")):
+            if rag_input.get(field) is True:
+                terms.append(term)
+    accident = {"rear-end": "후방 추돌", "head-on": "정면 충돌", "sideswipe": "측면 접촉",
+                "t-bone": "측면 충돌", "single": "단독 사고"}.get(rag_input.get("accident_type"))
+    if accident and (rag_input.get("schema_version") != "scene-facts-v2"
+                     or (rag_input.get("accident_presence") or {}).get("state") == "present"):
+        terms.append(accident)
+    return "\n".join(terms)
 
 
 class GeminiRag:
@@ -181,17 +237,7 @@ class GeminiRag:
         rows, vectors, digest = self._index()
         if not 1 <= self.settings.rag_top_k <= 30:
             raise ValueError("invalid_rag_top_k")
-        terms = [rag_input["description"], "기관별 대응 역할과 적용 조건"]
-        accident = {"rear-end": "후방 추돌", "head-on": "정면 충돌", "sideswipe": "측면 접촉",
-                    "t-bone": "측면 충돌", "single": "단독 사고"}.get(rag_input.get("accident_type"))
-        if accident:
-            terms.append(accident)
-        for field, term in (("lane_blocked", "차로 점유 교통 위험 도로 장애"),
-                            ("affected_person_visible", "사고 영향을 받은 사람 구조 구급 필요성 확인"),
-                            ("fire_visible", "차량 화재 소방 대응")):
-            if rag_input.get(field) is True:
-                terms.append(term)
-        query = "\n".join(terms)
+        query = build_retrieval_query(rag_input)
         response = self.client.models.embed_content(
             model=self.settings.rag_embedding_model, contents=query,
             config=types.EmbedContentConfig(task_type="RETRIEVAL_QUERY",
@@ -265,7 +311,11 @@ class GeminiRag:
                 "published_at": row.get("promulgated_at"),
                 "agencies": row["metadata"]["agencies"], "actors": row["metadata"]["actors"],
                 "application_conditions": row["metadata"]["application_conditions"],
-                "verification_status": row["metadata"].get("verification_status"),
+                  "verification_status": row["metadata"].get("verification_status"),
+                  **{field: row["metadata"].get(field) for field in (
+                      "application_stage", "conditional_actions", "conditions_status",
+                      "selection_conditions", "retrieval_conditions", "reference_resolution_note", "related_chunk_ids")},
+                  "referenced_articles": row.get("referenced_articles", []),
                 "relevance_note": "장면 관련 검색 후보; 실제 기관 선정은 보고서의 적용 조건을 확인하세요.",
                 "similarity": dense[key],
             })
@@ -302,6 +352,12 @@ class GeminiRag:
                     raise ValueError("invalid_field_response_citation")
             if agency.selection_status == "conditional" and not agency.conditions_to_confirm:
                 raise ValueError("conditional_agency_requires_conditions")
+            if (rag_input.get("schema_version") == "scene-facts-v2"
+                    and agency.selection_status == "supported"
+                    and any(citations[key].get("application_stage") == "actual_forest_fire_required"
+                            for key in agency.citation_chunk_ids)
+                    and (rag_input.get("features") or {}).get("visible_forest_burning", {}).get("state") != "present"):
+                raise ValueError("actual_forest_fire_evidence_required")
         if rag_input.get("operator_confirmed") is False and report.agencies:
             raise ValueError("normal_scene_has_response_agencies")
         return {**report.model_dump(), "provider_model": model, "prompt_version": "agency-report-v2"}

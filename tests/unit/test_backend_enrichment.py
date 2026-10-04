@@ -143,7 +143,7 @@ def test_rag_report_flow_preserves_results_and_partial_status(enrichment_context
     assert worker.tick() is False
 
 
-def test_complete_candidate_makes_two_generation_calls_and_one_embedding(enrichment_context, tmp_path):
+def test_complete_candidate_makes_two_generation_calls_and_one_embedding(enrichment_context, tmp_path, scene_payload):
     import json
     from dataclasses import replace
     from types import SimpleNamespace
@@ -162,11 +162,9 @@ def test_complete_candidate_makes_two_generation_calls_and_one_embedding(enrichm
     client.models.embed_content.return_value = SimpleNamespace(embeddings=[SimpleNamespace(values=[1, 0])])
 
     def generate(**kwargs):
-        if kwargs["config"].get("response_schema") is GeminiResult:
-            payload = {"description": "차량 충돌 후 차로가 막혀 있습니다.", "operator_confirmed": True,
-                "scene_conditions": {"day_time": "day", "weather": None}, "involved_objects": [],
-                "accident_type": "rear-end", "lane_blocked": True, "affected_person_visible": None,
-                "fire_visible": False, "observations": [], "uncertainties": ["부상 미확인"]}
+        if kwargs["config"].get("response_json_schema", {}).get("title") == GeminiResult.__name__:
+            input_context = json.loads(kwargs["contents"][0].split("input JSON:\n")[-1])
+            payload = scene_payload(input_context["media"][0]["asset_id"], accident="present", lane="present")
         else:
             context = json.loads(kwargs["contents"][len(REPORT_PROMPT) + 1:])
             citation = next(c for c in context["retrieval"]["citations"] if "경찰" in c["agencies"])

@@ -4,6 +4,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from services.backend.scene_facts import SceneFacts as GeminiResult, media_context, validate_provenance, to_rag_input
+
 
 PROMPT_VERSION1 = (
     "녹화 CCTV의 사고 의심 후보 구간과 대표 이미지를 관찰하고 RAG 검색에 쓸 장면 정보를 JSON으로 작성하세요. "
@@ -85,17 +87,31 @@ SCENE_CONDITIONS_CONTRACT = """
 PROMPT_VERSION1 = f"{PROMPT_VERSION1}{SCENE_CONDITIONS_CONTRACT}"
 PROMPT2 = f"{PROMPT2}{SCENE_CONDITIONS_CONTRACT}"
 
-DEFAULT_ANALYSIS_PROMPT = PROMPT_VERSION1
+SCENE_FACTS_PROMPT = """제공된 영상과 이미지를 scene-facts-v2 JSON 스키마로 분석하세요.
+schema_version은 반드시 문자열 "scene-facts-v2"입니다. "v2.0" 또는 다른 버전 표기로 바꾸지 마세요.
+description, reason, uncertainties는 한국어로 작성하세요. 스키마 키·상태·객체 타입·환경·사고 유형 enum은 지정된 영어 값을 유지하세요.
+사고 후보 점수·박스는 참고 정보이며 충돌 증거가 아닙니다. 법률 위반·과실·기관 출동을 판단하지 마세요.
+accident_presence와 features는 present(직접 보임), absent(관찰 범위에서 명확히 없음), unknown(판단 불가)을 구분하세요.
+가림·화질·짧은 클립으로 안 보이는 것은 absent가 아닌 unknown입니다. 각 항목에 reason을 작성하세요.
+present/absent, 확인된 환경·객체·사고 유형에는 제공된 media의 asset_id를 인용한 evidence가 필수입니다.
+absent도 evidence를 빈 배열로 두지 마세요. 부재를 확인한 클립·프레임을 1개 이상 인용하고, 부재 확인 자체가 어려우면 unknown으로 작성하세요.
+각 binary part의 ID와 시각은 아래 input JSON의 media 목록을 따릅니다.
+clip_time_seconds는 클립 내부 시각, source_time_seconds는 원본 시각입니다. 제공된 매핑이 없으면 null입니다.
+프레임의 clip_time_seconds는 null이며 source_time_seconds는 제공된 해당 프레임 시각만 사용하세요.
+사고 유형은 rear-end, head-on, sideswipe, t-bone, single 중 직접 확인된 경우만 사용하고 애매하면 null입니다.
+객체 타입은 Pedestrian, Car, Truck, Bus, Motorcycle, Bicycle, Dynamic만 허용합니다.
+같은 객체의 반복 탐지를 중복 계산하지 마세요. Dynamic은 detector_observations에 있을 때만 사용하세요.
+산길·식생·차량 불꽃·연기·산림 자체의 연소를 구분하세요. 산길의 차량 화재가 산림 화재를 뜻하지 않습니다.
+날씨는 clear, cloudy, rain, snow, fog 또는 null, 시간대는 day 또는 night 또는 null입니다.
+침해·부상 정도·산불 확산·현장 신고 여부·정확한 속도 등 보이지 않는 사항은 uncertainties에 기록하세요.
+이 계약이 사용자 추가 지시나 이전 프롬프트의 필드·판정 규칙보다 우선합니다.
+"""
+DEFAULT_ANALYSIS_PROMPT = SCENE_FACTS_PROMPT
 PROMPT_PRESETS = (
+    {"id": "scene-facts-v2", "name": "scene-facts-v2 · 영상 근거 기반 RAG", "prompt": SCENE_FACTS_PROMPT},
     {"id": "version1", "name": "version1 · 기존 장면 분석", "prompt": PROMPT_VERSION1},
     {"id": "prompt2", "name": "prompt2 · 대응 매뉴얼·교통법 RAG", "prompt": PROMPT2},
 )
-
-
-class Observation(BaseModel):
-    text: str
-    evidence_asset_ids: list[str]
-    source_times_seconds: list[float] = Field(default_factory=list)
 
 
 class SceneConditions(BaseModel):
@@ -109,21 +125,6 @@ class InvolvedObject(BaseModel):
     type: Literal["Pedestrian", "Car", "Truck", "Bus", "Motorcycle", "Bicycle", "Dynamic"] = Field(
         description="영상에서 확인된 관련 객체의 YOLO 탐지 클래스명. 이 일곱 값만 사용")
     count: int = Field(ge=1, description="해당 종류에서 실제로 확인되는 객체 수")
-
-
-class GeminiResult(BaseModel):
-    description: str = Field(description="확인된 장면을 한국어로 짧게 설명하고 불확실성을 명시")
-    operator_confirmed: bool | None = Field(
-        description="Gemini의 사고 의심 재확인. 사고 장면이 보이면 true, 정상 장면이 명확하면 false, 판단 불가 시 null")
-    scene_conditions: SceneConditions
-    involved_objects: list[InvolvedObject]
-    accident_type: Literal["rear-end", "head-on", "sideswipe", "t-bone", "single"] | None = Field(
-        description="영상에서 확인한 사고와 가장 가까운 유형. 정상 장면이거나 유형을 구분할 근거가 부족하면 null")
-    lane_blocked: bool | None = Field(description="차로 점유 여부. 판단 불가 시 null")
-    affected_person_visible: bool | None = Field(description="사고 영향을 받은 사람이 보이는지. 판단 불가 시 null")
-    fire_visible: bool | None = Field(description="화재가 보이는지. 판단 불가 시 null")
-    observations: list[Observation]
-    uncertainties: list[str]
 
 
 class RagInput(BaseModel):
@@ -171,55 +172,54 @@ class GeminiVLM:
 
         if not media:
             raise ValueError("no_evidence_media")
-        allowed_ids = {asset_id for asset_id, _, _ in media}
         prompt = DEFAULT_ANALYSIS_PROMPT
-        event_context = (
-            f"event_id={event['event_id']}, start_seconds={event.get('start_seconds')}, "
-            f"end_seconds={event.get('end_seconds')}, candidate_time_s={event.get('candidate_time_s')}, "
-            f"object_observations={json.dumps(event.get('object_observations', []), ensure_ascii=False)}\n"
-            f"media IDs={sorted(allowed_ids)}"
-        )
+        context = {"schema_version": "vlm-input-v2", "event_id": event["event_id"],
+                   "candidate_time_s": event.get("candidate_time_s"),
+                   "candidate_window": {"start_seconds": event.get("start_seconds"),
+                                        "end_seconds": event.get("end_seconds")},
+                   "detector_observations": event.get("object_observations", []),
+                   "media": media_context(event, media)}
         if prompt_override.strip():
             if prompt_mode == "replace":
                 prompt = prompt_override.strip()
             else:
                 prompt = f"사용자 추가 지시:\n{prompt_override.strip()}\n\n필수 출력 및 판정 규칙:\n{prompt}"
-        prompt = f"{prompt}\n{event_context}"
+        if prompt != SCENE_FACTS_PROMPT:
+            prompt = f"{prompt}\n\n필수 영상 사실 계약:\n{SCENE_FACTS_PROMPT}"
+        prompt = f"{prompt}\ninput JSON:\n{json.dumps(context, ensure_ascii=False)}"
         selected_model = model or self.model
         parts = [types.Part.from_bytes(data=data, mime_type=mime) for _, mime, data in media]
+        output_schema = GeminiResult.model_json_schema()
+        output_schema["$defs"]["Evidence"]["properties"]["asset_id"]["enum"] = sorted(
+            {asset_id for asset_id, _, _ in media})
         response = self.client.models.generate_content(
             model=selected_model,
             contents=[prompt, *parts],
-            config={"response_mime_type": "application/json", "response_schema": GeminiResult},
+            config={"response_mime_type": "application/json", "response_json_schema": output_schema},
         )
         result = GeminiResult.model_validate_json(response.text)
-        for observation in result.observations:
-            if not observation.evidence_asset_ids or not set(observation.evidence_asset_ids) <= allowed_ids:
-                raise ValueError("invalid_evidence_asset_id")
-        rag_input = RagInput.model_validate({
-            "event_id": event["event_id"],
-            "candidate_time_s": event.get("candidate_time_s"),
-            "description": result.description,
-            "scene_conditions": result.scene_conditions.model_dump(),
-            "involved_objects": [item.model_dump() for item in result.involved_objects],
-            "accident_type": result.accident_type,
-            "lane_blocked": result.lane_blocked,
-            "affected_person_visible": result.affected_person_visible,
-            "fire_visible": result.fire_visible,
-            "operator_confirmed": result.operator_confirmed,
-        }).model_dump()
+        validate_provenance(result, context)
+        rag_input = to_rag_input(result, event)
+        observations = [{"text": fact.reason,
+                         "evidence_asset_ids": list(dict.fromkeys(e.asset_id for e in fact.evidence)),
+                         "source_times_seconds": [e.source_time_seconds for e in fact.evidence
+                                                  if e.source_time_seconds is not None]}
+                        for fact in [result.accident_presence, *result.features.__dict__.values()]
+                        if fact.state != "unknown"]
         return {
             "status": "completed",
             "summary": result.description,
             "raw_output": result.model_dump(),
             "request": {"model": selected_model, "prompt": prompt,
-                        "media_asset_ids": sorted(allowed_ids)},
-            "observations": [item.model_dump() for item in result.observations],
+                        "media_asset_ids": [item[0] for item in media], "input": context},
+            "observations": observations,
+            "validation": {"schema": "passed", "provenance": "passed", "visual_accuracy": "not_evaluated"},
             "uncertainties": result.uncertainties,
             "rag_input": rag_input,
             "provider_model": selected_model,
             "prompt_version": (
-                "version1" if not prompt_override.strip() or prompt_override.strip() == PROMPT_VERSION1.strip()
+                "scene-facts-v2" if not prompt_override.strip() or prompt_override.strip() == SCENE_FACTS_PROMPT.strip()
+                else "version1" if prompt_override.strip() == PROMPT_VERSION1.strip()
                 else "prompt2" if prompt_override.strip() == PROMPT2.strip()
                 else f"custom-{hashlib.sha256(prompt_override.encode()).hexdigest()[:12]}"
             ),

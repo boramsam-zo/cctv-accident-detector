@@ -54,7 +54,7 @@ MODAL_ENVIRONMENT=dev
 MODAL_APP_NAME=cctv-accident-inference
 MODAL_FUNCTION_NAME=analyze_video_job
 ANALYSIS_PROFILE_ID=received-yolo-x3ds-v1
-GEMINI_MODEL=gemini-3.6-flash
+GEMINI_MODEL=gemini-3.5-flash-lite
 GEMINI_MODELS=
 RAG_ENABLED=true
 RAG_STORE=postgres
@@ -70,6 +70,8 @@ MAX_MODEL_WEIGHT_BYTES=536870912
 `GEMINI_MODEL`은 팀 계정에서 실제 사용 가능한 모델로 설정합니다. `GEMINI_MODELS`를
 비워두면 기본 모델 하나만 화면에 표시합니다. 여러 모델을 허용하려면 쉼표로 나열합니다.
 Compose의 DB URL과 UI의 백엔드 주소는 서비스 내부 이름으로 자동 설정됩니다.
+예시 기본 모델은 2026-10-04의 정상 장면·사고 장면 E2E에 사용한 `gemini-3.5-flash-lite`입니다.
+같은 날 `gemini-3.6-flash`에서는 일시적 503 과부하가 발생했습니다. 모델별 계정 권한과 한도는 별도 확인합니다.
 컨테이너에서 `DATABASE_URL=localhost...` 또는 `BACKEND_API_URL=localhost...`를 별도로 설정하지 않습니다.
 `.env`는 Compose가 읽어 필요한 값만 컨테이너에 전달하므로 셸마다 환경을 불러올 필요가 없습니다.
 
@@ -135,6 +137,18 @@ YOLO_WEIGHTS_SHA256=<SHA256>
 
 ## 4. 작업 중 반복 실행
 
+develop은 공통 기준 브랜치로 유지하고 실제 수정은 작업 브랜치에서 진행합니다.
+
+```powershell
+git switch develop
+git pull --ff-only
+git switch -c feat/작업이름
+```
+
+로컬 DB·`.env`·테스트 영상·가중치·임베딩 파일은 브랜치를 바꿔도 자동으로 준비되지 않습니다.
+팀에서 받은 자격 증명과 `embeddings.json`, 짧은 테스트 MP4를 먼저 준비하세요.
+`.env`의 `S3_KEY_PREFIX`에는 자신의 이름을 사용합니다.
+
 화면은 소스가 마운트되어 새로고침으로 반영됩니다. API는 `--reload`로 자동 재시작합니다.
 worker 코드 변경은 다음 명령으로 재시작합니다.
 
@@ -145,6 +159,28 @@ docker compose --env-file .env -f deploy/compose/compose.yaml restart worker
 의존성·Dockerfile·환경 변수 변경 시 시작 스크립트를 다시 실행합니다.
 `src/accident_vision` 변경은 원격 Modal 이미지에 포함되므로 GPU 함수를 다시 배포해야 합니다.
 로컬 UI 재시작만으로는 원격 GPU 코드가 바뀌지 않습니다.
+
+VLM·RAG 작업은 `services/backend/gemini_vlm.py`, `scene_facts.py`, `rag.py`를 수정합니다.
+현재 기본 출력 계약은 `scene-facts-v2`이며 사고 여부와 8개 관찰 항목을 `present / absent / unknown`으로 구분합니다.
+스키마나 의미가 바뀌면 [공통 계약](contracts/service_contract.md)과 관련 테스트도 함께 수정합니다.
+API·worker 재시작 후 E2E 화면의 기본 프롬프트가 `scene-facts-v2`인지 확인하세요.
+실제 JSON·클립 정답 비교 방법은 [VLM 검증 안내](VLM_FACTS_VALIDATION.md)를 따릅니다.
+
+Python을 호스트에 설치하지 않고 자동 테스트를 실행하려면, 실행 중인 개발 backend의 Python과 소스를 사용합니다.
+테스트 디렉터리와 데모 계약 자료는 아래 명령에서 마운트합니다.
+
+```powershell
+docker compose --env-file .env -f deploy/compose/compose.yaml -f deploy/compose/compose.dev.yaml run --rm --no-deps -v "${PWD}/tests:/app/tests:ro" -v "${PWD}/docs/contracts:/app/docs/contracts:ro" backend python -m pytest tests/unit tests/integration tests/smoke -q -o cache_dir=/tmp/pytest-cache
+```
+
+이 자동 테스트는 외부 서비스를 모의 처리합니다. 실제 서비스 E2E는 8502 화면에서 별도로 실행합니다.
+기능 확인 후 작업 브랜치를 커밋·푸시하고 develop 대상 PR로 공유합니다.
+
+```powershell
+git add 수정한파일
+git commit -m "작업 내용"
+git push -u origin HEAD
+```
 
 로그와 종료:
 
@@ -163,3 +199,11 @@ MP4 업로드 후 작업이 completed가 되고 객체·사고·근거·VLM·RAG
 사고 후보가 있으면 원본/객체 표시 클립, 장면 설명, 문서 인용과 기관별 안내를 확인합니다.
 사고 후보가 없는 영상은 VLM·RAG·보고서를 실행하지 않으므로 전체 경로 확인에는 사고 후보가 나오는 샘플이 필요합니다.
 새 검토를 저장하고 새로고침 후 유지되는지도 확인합니다.
+
+## 6. 모델 연결 장애와 재검증
+
+Gemini의 503 과부하 응답은 `partial` 및 VLM 실패로 기록됩니다. E2E 화면에서 VLM만 재시도하면
+기존 Modal 후보·근거 파일을 재사용합니다. 계약 검증 실패도 실패로 남기며 임의로 값을 보정하지 않습니다.
+과부하가 반복되면 `GEMINI_MODELS`에 팀 계정에서 사용 가능한 모델을 등록하고,
+E2E 화면에서 해당 모델을 선택해 새 분석을 실행합니다. 모델 변경을 자동으로 수행하지 않습니다.
+계정의 모델 사용 가능 여부와 API 한도는 팀 관리자에게 확인하세요.

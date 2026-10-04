@@ -18,7 +18,9 @@ def context(tmp_path):
             "content_sha256": hashlib.sha256(text.encode()).hexdigest(),
             "embedding_input": text, "corpus_kind": "statute", "title": key,
             "effective_to": end, "source_url": "https://example.org/source",
-            "metadata": {"agencies": [agency], "actors": [agency], "application_conditions": []}})
+            "referenced_articles": ["제1조"],
+            "metadata": {"agencies": [agency], "actors": [agency], "application_conditions": [],
+                         "application_stage": "risk_or_notification", "conditions_status": "inline_source_text"}})
     corpus = tmp_path / "chunks.jsonl"
     corpus.write_text("\n".join(json.dumps(row, ensure_ascii=False) for row in rows), encoding="utf-8")
     index = tmp_path / "index.json"
@@ -44,6 +46,8 @@ def test_retrieval_embeds_once_excludes_expired_and_balances_agencies(tmp_path):
     result = rag.retrieve({"description": "차량 충돌"}, recorded_at="2026-10-01T16:00:00+00:00")
     assert result["reference_date"] == "2026-10-02"
     assert {c["chunk_id"] for c in result["citations"]} == {"police", "fire"}
+    assert all(c["application_stage"] == "risk_or_notification" for c in result["citations"])
+    assert all(c["referenced_articles"] == ["제1조"] for c in result["citations"])
     client.models.embed_content.assert_called_once()
     assert client.models.embed_content.call_args.kwargs["config"].task_type == "RETRIEVAL_QUERY"
 
@@ -110,6 +114,18 @@ def test_normal_scene_rejects_response_agencies(tmp_path):
     with pytest.raises(ValueError, match="normal_scene_has_response_agencies"):
         rag.generate_report({"operator_confirmed": False}, {},
                             {"citations": [{"chunk_id": "police", "agencies": ["경찰"]}]}, model="model")
+
+
+def test_actual_forest_fire_source_cannot_support_unknown_forest_burning(tmp_path):
+    rag, client, _ = context(tmp_path)
+    client.models.generate_content.return_value.text = json.dumps({"summary": "차량 화재",
+        "limitations": [], "agencies": [{"agency": "산림청·산림기관", "role": "산불 진화", "reason": "산불",
+            "selection_status": "supported", "conditions_to_confirm": [], "citation_chunk_ids": ["forest"]}]})
+    retrieval = {"citations": [{"chunk_id": "forest", "agencies": ["산림청·산림기관"],
+                               "application_stage": "actual_forest_fire_required"}]}
+    with pytest.raises(ValueError, match="actual_forest_fire_evidence_required"):
+        rag.generate_report({"schema_version": "scene-facts-v2", "features": {
+            "visible_forest_burning": {"state": "unknown"}}}, {}, retrieval, model="model")
 
 
 @pytest.mark.parametrize("reference,valid", [("police", True), ("fire", False)])

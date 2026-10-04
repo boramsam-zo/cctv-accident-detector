@@ -90,6 +90,9 @@ def render_vlm_io(result: dict[str, Any]) -> None:
         st.info("표시할 VLM 입출력이 없습니다.")
         return
     st.subheader("VLM 입력·출력 확인")
+    st.caption("근거 ID·시각 검증은 영상 관찰 정확도를 보장하지 않습니다. 클립을 보고 present / absent / unknown을 확인하세요.")
+    st.download_button("클립 평가용 결과 JSON 다운로드", json.dumps(result, ensure_ascii=False, indent=2),
+                       file_name="vlm-job-result.json", mime="application/json", key="vlm-facts-export")
     for index, record in enumerate(records, start=1):
         with st.expander(f"후보 {index} · {record['event_id']} · {record['status']}", expanded=index == 1):
             input_column, output_column = st.columns(2)

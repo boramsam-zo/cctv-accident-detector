@@ -1,0 +1,18 @@
+[
+  {
+    "event_id": "REPLACE_WITH_ACTUAL_EVENT_ID",
+    "reviewer": "REPLACE_WITH_REVIEWER",
+    "clip_reviewed": false,
+    "expected": {
+      "accident_presence": "unknown",
+      "mountain_road": "unknown",
+      "visible_vegetation_near_fire": "unknown",
+      "flames": "unknown",
+      "smoke": "unknown",
+      "debris": "unknown",
+      "lane_blockage": "unknown",
+      "affected_people_visible": "unknown",
+      "visible_forest_burning": "unknown"
+    }
+  }
+]

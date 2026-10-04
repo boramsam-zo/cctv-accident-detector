@@ -172,8 +172,8 @@ def test_modal_candidate_flow_reaches_gemini_and_public_asset_api(tmp_path):
     app, gateway = make_test_app(tmp_path)
     client = TestClient(app)
     options = client.get("/api/v1/vlm-options", headers={"Authorization": "Bearer test"}).json()
-    assert [preset["id"] for preset in options["prompt_presets"]] == ["version1", "prompt2"]
-    assert options["default_prompt_preset"] == "version1"
+    assert [preset["id"] for preset in options["prompt_presets"]] == ["scene-facts-v2", "version1", "prompt2"]
+    assert options["default_prompt_preset"] == "scene-facts-v2"
     job_id, headers = submit_video_job(client)
     assert app.state.get_modal_worker().tick()
     assert gateway.assignment["input_object"]["bucket"] == "test-bucket"
@@ -211,7 +211,7 @@ def test_rag_readiness_is_authenticated_and_has_no_paid_calls(tmp_path):
     assert response.json() == {"status": "disabled", "store": "file"}
 
 
-def test_upload_to_grounded_report_with_three_gemini_requests(tmp_path):
+def test_upload_to_grounded_report_with_three_gemini_requests(tmp_path, scene_payload):
     from dataclasses import replace
     from types import SimpleNamespace
     from unittest.mock import Mock
@@ -227,11 +227,9 @@ def test_upload_to_grounded_report_with_three_gemini_requests(tmp_path):
         "vectors": {r["chunk_id"]: [1, 0] for r in rows}}))
 
     def generate(**kwargs):
-        if kwargs["config"].get("response_schema") is GeminiResult:
-            payload = {"description": "차량 충돌 후 차로 점유", "operator_confirmed": True,
-                "scene_conditions": {"day_time": "day", "weather": None}, "involved_objects": [],
-                "accident_type": "rear-end", "lane_blocked": True, "affected_person_visible": None,
-                "fire_visible": False, "observations": [], "uncertainties": ["부상 미확인"]}
+        if kwargs["config"].get("response_json_schema", {}).get("title") == GeminiResult.__name__:
+            input_context = json.loads(kwargs["contents"][0].split("input JSON:\n")[-1])
+            payload = scene_payload(input_context["media"][0]["asset_id"], accident="present", lane="present")
         else:
             context = json.loads(kwargs["contents"][len(REPORT_PROMPT) + 1:])
             citation = next(c for c in context["retrieval"]["citations"] if "경찰" in c["agencies"])
@@ -255,6 +253,11 @@ def test_upload_to_grounded_report_with_three_gemini_requests(tmp_path):
     candidate = result["candidates"][0]
     assert candidate["report"]["generation_status"] == "completed"
     assert candidate["report"]["structured"]["agencies"][0]["agency"] == "경찰"
+    assert candidate["vlm"]["raw_output"]["schema_version"] == "scene-facts-v2"
+    assert candidate["vlm"]["validation"]["provenance"] == "passed"
+    assert candidate["rag_input"]["features"]["lane_blockage"]["state"] == "present"
+    assert "차로 점유" in candidate["retrieval"]["query"]
+    assert "산림 연소" not in candidate["retrieval"]["query"]
     citation_ids = {c["chunk_id"] for c in candidate["retrieval"]["citations"]}
     assert set(candidate["report"]["agencies"][0]["citation_chunk_ids"]) <= citation_ids
     assert client.models.generate_content.call_count == 2

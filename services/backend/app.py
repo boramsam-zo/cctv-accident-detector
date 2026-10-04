@@ -359,7 +359,7 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
         return {"models": list(models), "default_model": settings.gemini_model,
                 "prompt_default": DEFAULT_ANALYSIS_PROMPT,
                 "prompt_presets": list(PROMPT_PRESETS),
-                "default_prompt_preset": "version1",
+                "default_prompt_preset": "scene-facts-v2",
                 "prompt_modes": ["replace", "prepend"],
                 "default_prompt_mode": "replace"}
 

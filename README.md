@@ -7,16 +7,13 @@
 
 ## 현재 상태
 
-| 영역 | 상태 |
-| --- | --- |
-| 설계 문서 | PRD, 공통 API·데이터 계약, 역할 문서 6종, 가상 응답 8종 |
-| 화면 (`apps/streamlit/`) | FastAPI 영상 접수·작업 조회·원본/근거 자산·검토 저장 연결. 데모는 `APP_MODE=demo`일 때만 사용 |
-| 백엔드 (`services/backend/`) | 공개 API, Modal 비동기 제출·회수, S3 manifest 검증, Gemini 설명 저장. 테스트는 가짜 S3·Modal·Gemini 사용 |
-| 모델 추론 | 인계받은 YOLO11s·X3D-S 코드를 `src/accident_vision/`에 연결. 실제 GPU 로드·추론은 검증 전 |
-| Modal GPU 함수 | `deploy/modal/app.py` 구현. 실제 Modal 계정·S3 가중치로 실행 검증 전 |
-| RAG 문서 저장소 | 미연결. 항상 `insufficient_evidence/corpus_not_configured`로 표시 |
+- 화면: FastAPI 영상 접수·작업 조회·원본/근거 자산・검토 저장 연결, 기관별 연락 대상·전달 사항·현장 참고항목 표시. 데모는 `APP_MODE=demo`일 때만 사용합니다.
+- 백엔드·GPU: Modal 비동기 제출·회수, YOLO11s·X3D-S 추론, S3 manifest·해시 검증을 연결했습니다. 실제 서비스 E2E를 실행했습니다.
+- VLM: `scene-facts-v2` 관찰 JSON과 근거 ID·시각 검증을 적용합니다. 실제 영상 관찰 정확도는 클립 정답 평가로 별도 확인합니다.
+- RAG: PostgreSQL·pgvector와 BM25 검색, Gemini 질의 임베딩·기관별 보고서를 연결했습니다. 대응 코퍼스는 통계 청크를 제외한 275개입니다.
+- 로컬 실행: Docker Compose, `.env` 예시와 [팀원 실행 안내](docs/TEAM_LOCAL_QUICKSTART.md)를 제공합니다. 로컬 GPU 없이 배포된 Modal 함수를 호출합니다.
 
-현재까지는 가짜 Modal 응답으로 화면·API 흐름을 확인했습니다. 실제 영상에서의 GPU 추론은 Modal 배포와 S3 가중치 연결 후 검증해야 합니다. GPU 입력·출력 기준은 [Modal 연결 계약](docs/contracts/modal-inference-v1.md), 실행 검증 기록은 [진행 기록](docs/PROGRESS.md)을 참고하세요.
+GPU 입력·출력 기준은 [Modal 연결 계약](docs/contracts/modal-inference-v1.md), 실행 검증 범위와 결과는 [진행 기록](docs/PROGRESS.md)을 참고하세요. 자동 테스트는 모의 서비스를 사용하며 실제 E2E와 구분합니다.
 
 ## 동작 방식
 
@@ -27,7 +24,7 @@
 3. **X3D-S**가 시간 창마다 사고 의심 점수를 계산해 후보 구간을 찾습니다.
 4. 후보가 있을 때만 해당 장면에 **YOLO11s**(7개 클래스)를 실행해 객체 정보를 붙입니다.
 5. Modal 함수는 클립·대표 프레임·manifest를 S3에 저장하고, 작업 완료 후 백엔드가 검증해 후보 event를 DB에 등록합니다.
-6. 백엔드의 별도 작업 프로세스가 검증된 클립·프레임을 **Gemini**(VLM)에 보내 장면 설명을 받고, **RAG**로 출처 있는 사례·판례·지침을 찾아 보고 초안을 만듭니다.
+6. 백엔드 작업 프로세스가 검증된 클립·프레임을 **Gemini**(VLM)에 보내 관찰 JSON을 받고, **RAG**로 법령·공식 대응 자료를 검색해 보고 초안을 만듭니다. 현재 코퍼스에는 판례가 없습니다.
 7. 담당자가 원본과 설명을 확인하고 판단·메모를 저장합니다. AI 초안과 사람의 판단은 따로 보존합니다.
 
 모델 점수는 검증된 사고 확률이 아니며, 표시되는 시각은 원본 영상 기준 초입니다. 처리 실패나 미처리 범위를 "사고 없음"으로 표시하지 않습니다.
@@ -119,7 +116,7 @@ uv run --no-sync python -m services.backend.run_worker
 
 ### 4. 샘플 영상으로 사고 탐지 실행
 
-> **실제 GPU 통합 검증 전입니다.** 코드는 연결했지만 Modal 앱 배포, S3 가중치와 자격 증명, 실제 영상 추론 확인이 필요합니다. 가중치는 저장소에 포함하지 않습니다.
+실제 S3·Modal·Gemini 연결을 검증했습니다. 팀원 환경에서도 동일한 배포 함수·가중치·접근 권한을 준비해야 합니다. 가중치는 저장소에 포함하지 않습니다.
 
 인계받은 모델 묶음의 오프라인 추론 코드를 공통 패키지로 옮겼습니다([수신 모델 확인](docs/contracts/received-model-metadata-v0.2.json)). 필요한 준비물은 다음과 같습니다.
 
@@ -146,6 +143,8 @@ YOLO `Dynamic` 클래스의 정의와 화면 표시 정책, X3D-S 임계값 0.5�
 | `docs/` | 계약, 역할 문서, 요구사항, 진행 기록 |
 
 전체 구조와 파일 추가 시점은 [프로젝트 폴더 구조](docs/PROJECT_FOLDER_STRUCTURE.md)에 있습니다.
+
+VLM의 `scene-facts-v2` 영상 관찰 JSON과 사람이 확인한 클립 정답의 비교 방법은 [VLM 계약·평가 안내](docs/VLM_FACTS_VALIDATION.md)에 있습니다.
 
 ## 팀원 시작 안내
 
