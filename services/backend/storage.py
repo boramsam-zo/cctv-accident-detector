@@ -44,6 +44,27 @@ class S3Storage:
         self.client.put_object(Bucket=self.bucket, Key=key, Body=data, ContentType="video/mp4")
         return StoredObject(key, digest, len(data))
 
+    def put_model_weight(self, key: str, stream, max_bytes: int) -> StoredObject:
+        """가중치 파일을 크기 제한 내에서 해시 계산 후 S3에 스트리밍 업로드한다."""
+        digest = hashlib.sha256()
+        size = 0
+        while chunk := stream.read(1024 * 1024):
+            size += len(chunk)
+            if size > max_bytes:
+                raise ValueError("empty_or_oversized_model_weight")
+            digest.update(chunk)
+        if size == 0:
+            raise ValueError("empty_or_oversized_model_weight")
+        stream.seek(0)
+        self.client.upload_fileobj(
+            stream, self.bucket, key,
+            ExtraArgs={"ContentType": "application/octet-stream"},
+        )
+        return StoredObject(key, digest.hexdigest(), size)
+
+    def delete(self, key: str) -> None:
+        self.client.delete_object(Bucket=self.bucket, Key=key)
+
     def get_bytes(self, key: str, max_bytes: int) -> bytes:
         """최대 크기를 넘지 않는 S3 객체를 바이트로 읽는다."""
         obj = self.client.get_object(Bucket=self.bucket, Key=key)

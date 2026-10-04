@@ -2,7 +2,8 @@ aws_region        = "ap-northeast-2"
 project_name      = "cctv-accident"
 subnet_id         = "subnet-0123456789abcdef0"
 video_bucket_name = "cctv-video-dev-bucket"
-video_key_prefix  = "dev/ec2/"
+video_key_prefix       = "dev/ec2/"
+mlflow_artifact_prefix = "dev/ec2/mlflow/"
 
 # The default is no inbound traffic. Prefer SSM port forwarding.
 streamlit_cidrs = []

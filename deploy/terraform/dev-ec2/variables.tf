@@ -36,6 +36,17 @@ variable "video_key_prefix" {
   }
 }
 
+variable "mlflow_artifact_prefix" {
+  description = "S3 prefix used by the EC2-hosted MLflow tracking server for proxied artifacts."
+  type        = string
+  default     = "dev/ec2/mlflow/"
+
+  validation {
+    condition     = can(regex("^[A-Za-z0-9_./=-]+/$", var.mlflow_artifact_prefix)) && !strcontains(var.mlflow_artifact_prefix, "..") && !startswith(var.mlflow_artifact_prefix, "/")
+    error_message = "mlflow_artifact_prefix must be relative, nonempty, end in '/', and not contain '..'."
+  }
+}
+
 variable "instance_type" {
   description = "x86_64 instance size. t3.medium has enough memory for a small dev API, worker, Streamlit, and PostgreSQL stack."
   type        = string

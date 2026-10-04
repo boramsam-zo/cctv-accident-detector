@@ -12,6 +12,7 @@ from uuid import uuid4
 
 from apps.streamlit.backend_client import BackendClient, BackendError
 from services.backend.gemini_vlm import RagInput
+from services.backend.scene_facts import SceneFacts, validate_provenance
 
 
 TERMINAL_STATUSES = {"completed", "partial", "failed"}
@@ -59,8 +60,18 @@ def main() -> int:
             time.sleep(args.poll_seconds)
 
         candidates = result.get("candidates") or []
-        rag_inputs = [RagInput.model_validate(candidate["rag_input"]).model_dump(mode="json")
-                      for candidate in candidates if candidate.get("rag_input")]
+        rag_inputs = []
+        for candidate in candidates:
+            payload = candidate.get("rag_input")
+            if not payload:
+                continue
+            if payload.get("schema_version") == "scene-facts-v2":
+                vlm = candidate["vlm"]
+                facts = SceneFacts.model_validate(vlm["raw_output"])
+                validate_provenance(facts, vlm["request"]["input"])
+                rag_inputs.append(payload)
+            else:
+                rag_inputs.append(RagInput.model_validate(payload).model_dump(mode="json"))
         print(json.dumps({"job_id": job_id, "status": status,
                           "detection_outcome": result.get("detection_outcome"),
                           "candidate_count": len(candidates), "gemini_json": rag_inputs,

@@ -61,7 +61,8 @@ class ModalWorker:
         digest = item.get("sha256", "")
         if not key.startswith(prefix) or not self.storage.exists(key):
             raise ValueError("invalid_asset_key")
-        if mime not in ({"video/mp4"} if kind == "clip" else {"image/jpeg", "image/png"}):
+        video_kinds = {"clip", "annotated_clip"}
+        if mime not in ({"video/mp4"} if kind in video_kinds else {"image/jpeg", "image/png"}):
             raise ValueError("invalid_asset_mime")
         if len(digest) != 64 or hashlib.sha256(self.storage.get_bytes(key, 20_000_000)).hexdigest() != digest:
             raise ValueError("asset_sha256_mismatch")
@@ -107,10 +108,14 @@ class ModalWorker:
                     raise ValueError("event_manifest_invalid")
                 evidence = manifest.get("evidence") or {}
                 clip = evidence.get("clip")
+                annotated_clip = evidence.get("annotated_clip")
                 frames = evidence.get("frames") or []
                 if not clip and not frames:
                     raise ValueError("candidate_has_no_evidence")
                 clip_id = self._asset(db, run, event_id, "clip", 0, clip, prefix) if clip else None
+                annotated_clip_id = self._asset(
+                    db, run, event_id, "annotated_clip", 0, annotated_clip, prefix
+                ) if annotated_clip else None
                 frame_data = []
                 for frame_index, frame in enumerate(frames):
                     asset_id = self._asset(db, run, event_id, "frame", frame_index, frame, prefix)
@@ -119,7 +124,8 @@ class ModalWorker:
                 event_data = {key: value for key, value in manifest.items() if key != "evidence"}
                 event_data.update({"label": "suspected_accident", "evidence": {
                     "clip_asset_id": clip_id, "clip_start_seconds": evidence.get("clip_start_seconds"),
-                    "clip_end_seconds": evidence.get("clip_end_seconds"), "frames": frame_data},
+                    "clip_end_seconds": evidence.get("clip_end_seconds"),
+                    "annotated_clip_asset_id": annotated_clip_id, "frames": frame_data},
                     "human_review": {"status": "unreviewed", "review_id": None,
                                      "review_revision": 0, "report_revision": None, "note": None}})
                 db.add(Event(id=event_id, run_id=run_id, sequence_number=index,
@@ -142,7 +148,13 @@ class ModalWorker:
             run.result, run.manifest_key = value, final_key
             run.outcome = "candidates_found" if candidates else (
                 "unknown" if counts[2] or counts[3] else "no_candidates")
-            run.status = "enriching" if candidates else (
+            manual_vlm = ((value.get("execution_config") or {}).get("vlm") or {}).get(
+                "manual_start", False)
+            if candidates and manual_vlm:
+                stages["vlm"] = {"status": "pending", "reason_code": "manual_start_required"}
+                value["stages"] = stages
+                run.result = value
+            run.status = ("awaiting_vlm" if manual_vlm else "enriching") if candidates else (
                 "partial" if run.outcome == "unknown" else "completed")
 
     def _fail(self, run_id: str, exc: Exception) -> None:
@@ -166,15 +178,27 @@ class ModalWorker:
                 run.attempt += 1
                 job = db.get(Job, run.job_id)
                 video = db.get(Video, job.video_id)
+                profile = ((run.result or {}).get("execution_config") or {}).get("analysis_profile") or {
+                    "id": run.profile_id, "source": "modal_secret"}
                 assignment = {"schema_version": "modal-inference-v1", "job_id": job.id,
                               "run_id": run.id, "source_video_id": video.id,
                               "input_object": {"bucket": self.storage.bucket, "key": video.s3_key,
                                                "sha256": video.sha256},
                               "output_prefix": f"{self.key_prefix}jobs/{job.id}/runs/{run.id}/attempt-{run.attempt}/",
                               "attempt": run.attempt,
-                              "analysis_profile": {"id": run.profile_id,
+                              "analysis_profile": {"id": profile["id"],
                                                    "analysis_mode": "offline_video"},
                               "duration_seconds": video.duration_seconds}
+                if profile.get("source") == "registered":
+                    models = profile["models"]
+                    assignment["model_weights"] = {
+                        "x3d": models["accident"]["weights"],
+                        "yolo": models["objects"]["weights"],
+                    }
+                    assignment["model_families"] = {
+                        "x3d": models["accident"]["family"],
+                        "yolo": models["objects"]["family"],
+                    }
                 run_id = run.id
             else:
                 assignment = None

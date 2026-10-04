@@ -29,13 +29,14 @@ def analyze_video_job(assignment: dict) -> dict:
     import boto3
     import cv2
 
-    from accident_vision.pipeline import ModelBundle, analyze_video, frame_at
+    from accident_vision.pipeline import (
+        ModelBundle, analyze_video, annotate_collision_frame, frame_at,
+    )
 
     if assignment.get("schema_version") != "modal-inference-v1":
         raise ValueError("unsupported_assignment_schema")
     source = assignment["input_object"]
     bucket, source_key = source["bucket"], source["key"]
-    weights_bucket = os.environ["MODEL_WEIGHTS_S3_BUCKET"]
     prefix = assignment["output_prefix"]
     run_id = assignment["run_id"]
     if not prefix.endswith(f"jobs/{assignment['job_id']}/runs/{run_id}/attempt-{assignment['attempt']}/"):
@@ -60,14 +61,27 @@ def analyze_video_job(assignment: dict) -> dict:
         s3.download_file(bucket, source_key, str(video_path))
         if hashlib.sha256(video_path.read_bytes()).hexdigest() != source["sha256"]:
             raise ValueError("source_sha256_mismatch")
+        assigned_weights = assignment.get("model_weights")
+        if assigned_weights:
+            weight_refs = assigned_weights
+        else:
+            weights_bucket = os.environ["MODEL_WEIGHTS_S3_BUCKET"]
+            weight_refs = {
+                "x3d": {"bucket": weights_bucket, "key": os.environ["X3D_WEIGHTS_S3_KEY"],
+                        "sha256": os.environ["X3D_WEIGHTS_SHA256"]},
+                "yolo": {"bucket": weights_bucket, "key": os.environ["YOLO_WEIGHTS_S3_KEY"],
+                         "sha256": os.environ["YOLO_WEIGHTS_SHA256"]},
+            }
         weights = {}
-        for name, environment in (("x3d", "X3D_WEIGHTS_S3_KEY"),
-                                  ("yolo", "YOLO_WEIGHTS_S3_KEY")):
-            key = os.environ[environment]
+        for name in ("x3d", "yolo"):
+            ref = weight_refs[name]
+            weight_bucket, key = ref["bucket"], ref["key"]
+            if not weight_bucket or not key or "://" in key or key.startswith("/") or ".." in key.split("/"):
+                raise ValueError(f"invalid_{name}_weights_reference")
             path = root / f"{name}.pt"
-            s3.download_file(weights_bucket, key, str(path))
+            s3.download_file(weight_bucket, key, str(path))
             digest = hashlib.sha256(path.read_bytes()).hexdigest()
-            expected_digest = os.environ[f"{name.upper()}_WEIGHTS_SHA256"]
+            expected_digest = ref["sha256"]
             if digest != expected_digest:
                 raise ValueError(f"{name}_weights_sha256_mismatch")
             weights[name] = {"path": path, "sha256": digest}
@@ -87,7 +101,28 @@ def analyze_video_job(assignment: dict) -> dict:
                             "-pix_fmt", "yuv420p", str(clip_path)], check=True)
             clip = upload(f"{prefix}events/{event_id}/clip.mp4",
                           clip_path.read_bytes(), "video/mp4")
-            ok, image_data = cv2.imencode(".jpg", frame_at(video_path, candidate_time))
+            annotated_avi_path = root / f"{event_id}-annotated.avi"
+            annotated_clip_path = root / f"{event_id}-annotated.mp4"
+            models.annotate_video(
+                clip_path,
+                annotated_avi_path,
+                collision_start_s=max(0.0, float(event["start_s"]) - clip_start),
+                collision_end_s=min(clip_end - clip_start,
+                                    float(event["end_s"]) - clip_start),
+                collision_score=float(event["peak_probability"]),
+            )
+            subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+                            "-i", str(annotated_avi_path), "-an", "-c:v", "libx264",
+                            "-pix_fmt", "yuv420p", "-movflags", "+faststart",
+                            str(annotated_clip_path)], check=True)
+            annotated_clip = upload(f"{prefix}events/{event_id}/annotated.mp4",
+                                    annotated_clip_path.read_bytes(), "video/mp4")
+            representative_frame = annotate_collision_frame(
+                frame_at(video_path, candidate_time),
+                event["yolo_objects"],
+                float(event["peak_probability"]),
+            )
+            ok, image_data = cv2.imencode(".jpg", representative_frame)
             if not ok:
                 raise ValueError("candidate_frame_encode_failed")
             frame = upload(f"{prefix}events/{event_id}/frame.jpg",
@@ -104,9 +139,11 @@ def analyze_video_job(assignment: dict) -> dict:
                         "object_observations": event["yolo_objects"],
                         "evidence": {"clip_start_seconds": clip_start,
                                      "clip_end_seconds": clip_end, "clip": clip,
+                                     "annotated_clip": annotated_clip,
                                      "frames": [frame]}}
             event_refs.append(upload_json(f"{prefix}events/{event_id}/manifest.json", manifest))
         window_count = len(analysis["x3d"]["windows"])
+        families = assignment.get("model_families") or {}
         final = {"schema_version": "service-draft-v0.2", "run_id": run_id,
                  "coverage": {"requested_start_seconds": 0.0,
                               "requested_end_seconds": duration,
@@ -114,9 +151,9 @@ def analyze_video_job(assignment: dict) -> dict:
                               "predicted_windows": window_count,
                               "unclassified_windows": 0, "pending_windows": 0,
                               "unknown_ranges": []},
-                 "models": {"objects": {"family": "YOLO11s",
+                 "models": {"objects": {"family": families.get("yolo", "YOLO11s"),
                                         "weights_sha256": weights["yolo"]["sha256"]},
-                            "accident": {"family": "X3D-S",
+                            "accident": {"family": families.get("x3d", "X3D-S"),
                                          "weights_sha256": weights["x3d"]["sha256"]}},
                  "errors": []}
         final_ref = upload_json(f"{prefix}final.json", final)

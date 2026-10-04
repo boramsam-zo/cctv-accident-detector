@@ -1,0 +1,2236 @@
+{
+  "source_path": "C:\\Users\\user\\Downloads\\chunks.jsonl",
+  "as_of": "2026-10-02",
+  "analysis_scope": "Local structure and integrity checks; source authenticity and current validity not independently verified",
+  "encoding": "utf-8-sig",
+  "file_bytes": 2356983,
+  "file_sha256": "12cb84612820800131a1ad5c06d10cce0aa2d7d71f347ee4425d82e3de9395cc",
+  "chunk_count": 609,
+  "document_id_count": 105,
+  "parse_errors": [],
+  "distributions": {
+    "corpus_kind": {
+      "statute": 67,
+      "enforcement_decree": 19,
+      "administrative_rule": 172,
+      "statistics": 334,
+      "enforcement_rule": 3,
+      "official_guidance": 14
+    },
+    "audience": {
+      "common": 53,
+      "control_room": 33,
+      "field": 45,
+      "<null>": 478
+    },
+    "result_group": {
+      "common_rules": 89,
+      "police_rules": 162,
+      "statistics": 334,
+      "agency_rules": 10,
+      "official_guidance": 14
+    },
+    "text_origin": {
+      "prepared_legal_text": 131,
+      "restored_source_chunk": 78,
+      "generated_from_structured_row": 334,
+      "official_verbatim_excerpt": 52,
+      "attributed_summary": 14
+    },
+    "metadata.content_role": {
+      "official_source_text": 261,
+      "structured_statistics": 334,
+      "source_based_summary": 14
+    },
+    "metadata.input_collection": {
+      "additional_chunks": 131,
+      "existing_legal_restored": 78,
+      "<null>": 334,
+      "scenario_selected_pdf": 66
+    },
+    "metadata.dataset_family": {
+      "<null>": 275,
+      "accident_type_offender_vehicle": 190,
+      "road_time": 84,
+      "road_weather": 42,
+      "accident_type": 18
+    },
+    "metadata.conditions_status": {
+      "inline_source_text; not_exhaustively_structured": 209,
+      "not_applicable": 334,
+      "selection_editorial_conditions_preserved": 66
+    },
+    "metadata.report_uses": {
+      "agency_response": 275,
+      "related_law": 261,
+      "statistics": 334
+    },
+    "metadata.agencies": {
+      "경찰": 224,
+      "소방": 29,
+      "도로관리청·도로관리기관": 16,
+      "긴급구조통제단": 7,
+      "지자체": 15,
+      "환경기관": 5,
+      "지방고용노동관서": 1,
+      "응급의료기관": 2,
+      "산림청·산림기관": 11,
+      "야생동물 구조기관": 2
+    },
+    "metadata.scenario_tags": {
+      "교통사고": 543,
+      "다중 추돌·다수 사상자": 24,
+      "뺑소니·사고 후 미조치": 12,
+      "터널 사고": 2,
+      "관계기관 협력": 1,
+      "터널 사고·터널 화재": 4,
+      "터널 화재": 1,
+      "진입 차단·상황 전파": 1,
+      "지하차도 침수": 4,
+      "기관 협조·우회·통제": 1,
+      "터널 교통사고·화재·침수": 1,
+      "추가 진입 차단": 1,
+      "화재 등 위급 상황": 1,
+      "출입 제한": 1,
+      "차량 화재": 6,
+      "생명 위험이 인정되는 위급 상황": 1,
+      "피난 협조": 1,
+      "재난현장": 1,
+      "구조 활동을 위한 통제선": 1,
+      "추돌·진로변경·급제동": 1,
+      "운전자 의무 검토": 1,
+      "적재 화물 낙하": 1,
+      "화물 고정 의무 검토": 1,
+      "도로 시설 파손·낙하물": 5,
+      "폭발 위험": 2,
+      "산불 확산": 2,
+      "침수": 2,
+      "시설물 붕괴": 2,
+      "폭발·추가 폭발 위험": 5,
+      "다중 추돌": 1,
+      "다수 사상자": 1,
+      "대형 차량 화재": 1,
+      "폭발": 1,
+      "복합 재난": 1,
+      "뺑소니 의심 / 인적 피해를 동반한 도주": 1,
+      "가드레일·방호벽 파손 / 시설 관리 주체 연결": 1,
+      "교량 사고·구조물 손상 위험": 3,
+      "낙하물·잔해·적치물로 통행 위험 / 신속 제거": 1,
+      "도로 파손·시설 손괴·기상재해 / 관리자의 통행 제한": 1,
+      "안개·폭설·결빙·강풍": 4,
+      "다중추돌·짙은 안개·폭설·지하차도 침수 / 긴급 진입 차단": 1,
+      "다중추돌·위험물 대형사고 / 짙은 안개·교량강풍·폭설·침수 기준": 1,
+      "고속도로 낙하물·시설 파손·사고 / 안전순찰원의 초동조치": 1,
+      "안개·강우·적설·결빙 / 악천후 속도": 1,
+      "가드레일·도로시설 파손 / 자료 보전 및 원인자 불명 시 우선 복구": 1,
+      "지하차도 침수 / 지하차도별 통제 수심 기준": 1,
+      "보행자·횡단보도·교차로 회전 중 충돌 / 운전자 의무": 1,
+      "보행자·어린이 보호구역 사고": 3,
+      "어린이 보호구역 사고 / 신호 없는 횡단보도와 보호 의무": 1,
+      "어린이 보호구역에서 어린이 사상 / 적용 요건 검토": 1,
+      "음주 의심 사고 / 측정과 불복 시 재측정": 1,
+      "음주 의심·음주 측정": 1,
+      "사고 후 미조치 / 주정차 차량만 손괴한 경우 구분": 1,
+      "차량 화재·폭발 / 구출·연소확대 방지·소방 접근 장애": 1,
+      "차량 화재·폭발 / 주변 가스·전기·유류시설 위험 차단": 1,
+      "전복·차체 끼임·중상자 / 119 구조·응급처치·이송": 1,
+      "전복·차체 끼임": 4,
+      "차량 추락·침수 수난구조": 2,
+      "전복·끼임 구조 또는 다수 사상자 / 지자체 지원 협력": 1,
+      "차체 끼임·전복 / 구조를 위한 물건 사용·제한·처분": 1,
+      "이동탱크저장소 등 위험물 유출 / 응급조치·기관 통보": 1,
+      "위험물·화학물질 누출": 5,
+      "화학물질 운송사고 / 응급조치·신고·기관 통보": 1,
+      "화학물질 운송사고 / 환경기관 조정과 지자체·구조기관 협의": 1,
+      "다수 사상자·다중추돌 / 현장응급의료소·분류·처치·분산이송·인계": 1,
+      "사고 유류·화학물질의 인접 하천 유입 / 방제조치·지자체 대응": 1,
+      "유류·화학물질 하천 유입": 2,
+      "산림 인근 차량화재: 산불 위험과 실제 산불 구분": 1,
+      "산림 인접 화재·실제 산불 전이": 11,
+      "산림 인근 차량화재": 11,
+      "산불 확산 우려": 11,
+      "산림 인근 차량화재: 불씨·산불 신고 및 기관 전파": 1,
+      "산림 인근 차량화재: 주민·도로 이용자 대피 필요": 1,
+      "차량화재가 실제 산불로 전이: 산불 규모·관할별 지휘": 1,
+      "실제 산불: 현장 본부와 산림청·지방산림청 공동 대응": 1,
+      "실제 산불: 소방·경찰 인력과 장비 협조": 1,
+      "차량화재 후 실제 산불 피해: 발생 원인 조사": 1,
+      "도로 충돌 후 살아 있는 부상 야생동물: 구조·치료 담당": 1,
+      "로드킬 사체·부상 야생동물": 3,
+      "부상 야생동물 긴급 구조: 포획금지 예외": 1,
+      "교통사고 현장 주변 산림 사면의 산사태·토석류 또는 징후": 1,
+      "산림 사면 붕괴·토석류": 2,
+      "산림 사면 붕괴·토석류로 도로 이용자 대피가 필요한 경우": 1,
+      "차량 화재·폭발 / 탑승자·차종·화물 확인": 1,
+      "위험물 차량 화재 / 진압 후 증기·유류 유출": 1,
+      "확인된 전기차 화재 / 배터리 화재 분기": 1,
+      "전기차 화재·전기동력차 구조": 3,
+      "확인된 전기차 배터리 화재 / 냉각·재발화·이동": 1,
+      "전복·끼임·차량 충돌 / 구조 접근과 2차 사고 방지": 1,
+      "확인된 전기동력차 전복·끼임 / 고전압 구조 안전": 1,
+      "확인된 위험물·화학물질 운반차량 유출 / 물질 확인·전문대 요청": 1,
+      "화학물질 유출 / 주민대피·경찰통제·하천 오염방지": 1,
+      "다수 사상자·연쇄추돌 / 의료지원·중증도분류·분산이송": 1,
+      "실제 산불 신고: 소방·경찰 접수 후 상황 전파": 1,
+      "실제 산불: 산림청 항공진화 지원": 1,
+      "실제 산불: 소방 가옥·시설물 보호와 초동진화": 1,
+      "실제 산불: 경찰 교통통제·대피 보호·범인 검거": 1,
+      "도로 위 죽은 동물: 사체 수거 요청 경로": 1,
+      "터널 화재 / 소방·경찰·터널관리자 협조": 1,
+      "교량 다중 추돌 / 소방·경찰·도로관리자 협조": 1,
+      "차량 추락·침수 / 수난 구조": 1,
+      "사고 후 폭발 / 추가 폭발·붕괴 위험": 1
+    }
+  },
+  "missing_or_empty": {
+    "document_id": 0,
+    "chunk_id": 0,
+    "content": 0,
+    "embedding_input": 0,
+    "content_sha256": 0,
+    "source_url": 0,
+    "source_version_url": 390,
+    "effective_from": 348,
+    "effective_to": 484,
+    "retrieved_at": 412
+  },
+  "lengths_characters": {
+    "content": {
+      "min": 29,
+      "median": 95,
+      "p95_lower_order_statistic": 408,
+      "max": 1013,
+      "total": 83386
+    },
+    "embedding_input": {
+      "min": 114,
+      "median": 161,
+      "p95_lower_order_statistic": 807,
+      "max": 1425,
+      "total": 162171
+    }
+  },
+  "duplicate_values": {
+    "chunk_id": {},
+    "content_sha256": {}
+  },
+  "content_hash_mismatches": [],
+  "broken_related_chunk_ids": [],
+  "date_issues": [],
+  "date_ranges": [
+    {
+      "effective_from": "2024-07-03",
+      "effective_to": null,
+      "effective_to_inclusive": null,
+      "chunk_count": 33
+    },
+    {
+      "effective_from": "2026-07-07",
+      "effective_to": null,
+      "effective_to_inclusive": null,
+      "chunk_count": 4
+    },
+    {
+      "effective_from": "2026-07-01",
+      "effective_to": null,
+      "effective_to_inclusive": null,
+      "chunk_count": 17
+    },
+    {
+      "effective_from": "2026-08-01",
+      "effective_to": null,
+      "effective_to_inclusive": null,
+      "chunk_count": 1
+    },
+    {
+      "effective_from": "2024-07-24",
+      "effective_to": null,
+      "effective_to_inclusive": null,
+      "chunk_count": 38
+    },
+    {
+      "effective_from": "2026-07-24",
+      "effective_to": "2029-07-31",
+      "effective_to_inclusive": true,
+      "chunk_count": 124
+    },
+    {
+      "effective_from": null,
+      "effective_to": null,
+      "effective_to_inclusive": null,
+      "chunk_count": 348
+    },
+    {
+      "effective_from": "2026-04-30",
+      "effective_to": null,
+      "effective_to_inclusive": null,
+      "chunk_count": 5
+    },
+    {
+      "effective_from": "2026-09-03",
+      "effective_to": null,
+      "effective_to_inclusive": null,
+      "chunk_count": 4
+    },
+    {
+      "effective_from": "2026-07-22",
+      "effective_to": null,
+      "effective_to_inclusive": null,
+      "chunk_count": 3
+    },
+    {
+      "effective_from": "2025-07-02",
+      "effective_to": null,
+      "effective_to_inclusive": null,
+      "chunk_count": 2
+    },
+    {
+      "effective_from": "2026-09-18",
+      "effective_to": null,
+      "effective_to_inclusive": null,
+      "chunk_count": 6
+    },
+    {
+      "effective_from": "2026-08-24",
+      "effective_to": null,
+      "effective_to_inclusive": null,
+      "chunk_count": 5
+    },
+    {
+      "effective_from": "2024-09-13",
+      "effective_to": "2027-09-17",
+      "effective_to_inclusive": true,
+      "chunk_count": 1
+    },
+    {
+      "effective_from": "2025-06-04",
+      "effective_to": null,
+      "effective_to_inclusive": null,
+      "chunk_count": 3
+    },
+    {
+      "effective_from": "2025-08-07",
+      "effective_to": null,
+      "effective_to_inclusive": null,
+      "chunk_count": 1
+    },
+    {
+      "effective_from": "2025-10-01",
+      "effective_to": null,
+      "effective_to_inclusive": null,
+      "chunk_count": 2
+    },
+    {
+      "effective_from": "2026-02-19",
+      "effective_to": null,
+      "effective_to_inclusive": null,
+      "chunk_count": 1
+    },
+    {
+      "effective_from": "2026-05-12",
+      "effective_to": null,
+      "effective_to_inclusive": null,
+      "chunk_count": 11
+    }
+  ],
+  "source_inventory": [
+    {
+      "title": "112신고의 운영 및 처리에 관한 법률",
+      "chunk_count": 16,
+      "document_ids": [
+        "kr-112-report-act-19870-effective-20240703-article-11",
+        "kr-112-report-act-19870-effective-20240703-article-7",
+        "kr-112-report-act-19870-effective-20240703-article-8",
+        "kr-112-report-act-19870-effective-20240703-article-9"
+      ],
+      "corpus_kinds": [
+        "statute"
+      ],
+      "source_urls": [
+        "https://www.law.go.kr/법령/112신고의운영및처리에관한법률/(19870,20240102)"
+      ]
+    },
+    {
+      "title": "112신고의 운영 및 처리에 관한 법률 시행령",
+      "chunk_count": 17,
+      "document_ids": [
+        "kr-112-report-act-enforcement-decree-34629-effective-20240703-article-3",
+        "kr-112-report-act-enforcement-decree-34629-effective-20240703-article-5",
+        "kr-112-report-act-enforcement-decree-34629-effective-20240703-article-6"
+      ],
+      "corpus_kinds": [
+        "enforcement_decree"
+      ],
+      "source_urls": [
+        "https://www.law.go.kr/법령/112신고의운영및처리에관한법률시행령/(34629,20240702)"
+      ]
+    },
+    {
+      "title": "경찰관 직무집행법",
+      "chunk_count": 4,
+      "document_ids": [
+        "kr-police-duties-act-21304-effective-20260707-article-5"
+      ],
+      "corpus_kinds": [
+        "statute"
+      ],
+      "source_urls": [
+        "https://www.law.go.kr/법령/경찰관직무집행법/(21304,20260106)"
+      ]
+    },
+    {
+      "title": "도로교통법",
+      "chunk_count": 15,
+      "document_ids": [
+        "kr-road-traffic-act-21246-effective-20260701-article-54",
+        "kr-road-traffic-act-21246-effective-20260701-article-55",
+        "kr-road-traffic-act-21246-effective-20260701-article-58",
+        "kr-road-traffic-act-21246-effective-20260701-article-66",
+        "scenario-document-3e48b1298a69",
+        "scenario-document-c8cfb049f176"
+      ],
+      "corpus_kinds": [
+        "statute"
+      ],
+      "source_urls": [
+        "https://www.law.go.kr/LSW/LsiJoLinkP.do?docType=JO&joNo=009500000&languageType=KO&lsNm=%EB%8F%84%EB%A1%9C%EA%B5%90%ED%86%B5%EB%B2%95&paras=1",
+        "https://www.law.go.kr/lsInfoP.do?lsId=001638",
+        "https://www.law.go.kr/lsLinkCommonInfo.do?chrClsCd=010202&lsJoLnkSeq=1028222005",
+        "https://www.law.go.kr/lsLinkCommonInfo.do?chrClsCd=010202&lsJoLnkSeq=1030974615",
+        "https://www.law.go.kr/법령/도로교통법/(21246,20251230)"
+      ]
+    },
+    {
+      "title": "도로교통법 시행령",
+      "chunk_count": 1,
+      "document_ids": [
+        "kr-road-traffic-act-enforcement-decree-36114-effective-20260801-article-32"
+      ],
+      "corpus_kinds": [
+        "enforcement_decree"
+      ],
+      "source_urls": [
+        "https://www.law.go.kr/법령/도로교통법시행령/(36114,20260219)"
+      ]
+    },
+    {
+      "title": "112치안종합상황실 운영 및 신고처리 규칙",
+      "chunk_count": 38,
+      "document_ids": [
+        "kr-112-situation-room-rule-633-effective-20240724-article-1",
+        "kr-112-situation-room-rule-633-effective-20240724-article-10",
+        "kr-112-situation-room-rule-633-effective-20240724-article-11",
+        "kr-112-situation-room-rule-633-effective-20240724-article-12",
+        "kr-112-situation-room-rule-633-effective-20240724-article-13",
+        "kr-112-situation-room-rule-633-effective-20240724-article-14",
+        "kr-112-situation-room-rule-633-effective-20240724-article-15",
+        "kr-112-situation-room-rule-633-effective-20240724-article-18",
+        "kr-112-situation-room-rule-633-effective-20240724-article-2",
+        "kr-112-situation-room-rule-633-effective-20240724-article-20",
+        "kr-112-situation-room-rule-633-effective-20240724-article-3",
+        "kr-112-situation-room-rule-633-effective-20240724-article-4",
+        "kr-112-situation-room-rule-633-effective-20240724-article-6",
+        "kr-112-situation-room-rule-633-effective-20240724-article-7",
+        "kr-112-situation-room-rule-633-effective-20240724-article-8",
+        "kr-112-situation-room-rule-633-effective-20240724-article-9"
+      ],
+      "corpus_kinds": [
+        "administrative_rule"
+      ],
+      "source_urls": [
+        "https://www.law.go.kr/행정규칙/112치안종합상황실운영및신고처리규칙/(633,20240724)"
+      ]
+    },
+    {
+      "title": "교통사고 조사규칙",
+      "chunk_count": 124,
+      "document_ids": [
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-1",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-10",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-11",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-12",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-13",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-14",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-15",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-16",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-17",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-18",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-19",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-2",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-20",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-20-2",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-20-3",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-20-4",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-21",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-22",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-22-2",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-23",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-24",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-25",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-26",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-27",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-28",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-29",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-3",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-30",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-31",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-32",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-33",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-34",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-35",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-36",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-37",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-38",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-39",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-4",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-4-2",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-40",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-41",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-42",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-43",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-44",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-5",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-6",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-7",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-8",
+        "kr-traffic-accident-investigation-rule-1213-effective-20260724-article-9"
+      ],
+      "corpus_kinds": [
+        "administrative_rule"
+      ],
+      "source_urls": [
+        "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulId=38231&efYd=0",
+        "https://www.law.go.kr/행정규칙/교통사고조사규칙/(1213,20260724)"
+      ]
+    },
+    {
+      "title": "한국도로교통공단_사고유형별 가해운전자 차종별 교통사고 통계_20251231",
+      "chunk_count": 190,
+      "document_ids": [
+        "document-5615026a663704c0389c"
+      ],
+      "corpus_kinds": [
+        "statistics"
+      ],
+      "source_urls": [
+        "https://taas.koroad.or.kr/"
+      ]
+    },
+    {
+      "title": "한국도로교통공단_도로종류별 시간대별 교통사고 통계_20251231",
+      "chunk_count": 84,
+      "document_ids": [
+        "document-a57b533d69c93fb5ab68"
+      ],
+      "corpus_kinds": [
+        "statistics"
+      ],
+      "source_urls": [
+        "https://www.data.go.kr/data/15070257/fileData.do"
+      ]
+    },
+    {
+      "title": "한국도로교통공단_도로종류별 기상상태별 교통사고 통계_20251231",
+      "chunk_count": 42,
+      "document_ids": [
+        "document-b2b9eb9de603793f8375"
+      ],
+      "corpus_kinds": [
+        "statistics"
+      ],
+      "source_urls": [
+        "https://www.data.go.kr/data/15070237/fileData.do"
+      ]
+    },
+    {
+      "title": "한국도로교통공단_사고유형별 교통사고 통계_20251231",
+      "chunk_count": 18,
+      "document_ids": [
+        "document-c17545a6ded70beb88af"
+      ],
+      "corpus_kinds": [
+        "statistics"
+      ],
+      "source_urls": [
+        "https://www.data.go.kr/data/15070282/fileData.do"
+      ]
+    },
+    {
+      "title": "도로터널 방재·환기시설 설치 및 관리지침",
+      "chunk_count": 5,
+      "document_ids": [
+        "scenario-document-3fd0e3457a96",
+        "scenario-document-bb1047aac21d"
+      ],
+      "corpus_kinds": [
+        "administrative_rule"
+      ],
+      "source_urls": [
+        "https://www.law.go.kr/admRulInfoP.do?admRulSeq=2100000278450"
+      ]
+    },
+    {
+      "title": "소방기본법",
+      "chunk_count": 4,
+      "document_ids": [
+        "scenario-document-8d9a50cccefe",
+        "scenario-document-a64f4ece1221"
+      ],
+      "corpus_kinds": [
+        "statute"
+      ],
+      "source_urls": [
+        "https://www.law.go.kr/lsInfoP.do?ancYnChk=0&lsId=009505"
+      ]
+    },
+    {
+      "title": "긴급구조대응활동 및 현장지휘에 관한 규칙",
+      "chunk_count": 2,
+      "document_ids": [
+        "scenario-document-70ee1877540b",
+        "scenario-document-f2255799b505"
+      ],
+      "corpus_kinds": [
+        "enforcement_rule"
+      ],
+      "source_urls": [
+        "https://www.law.go.kr/LSW/lsInfoP.do?lsId=006894&urlMode=lsInfoP"
+      ]
+    },
+    {
+      "title": "재난 및 안전관리 기본법",
+      "chunk_count": 3,
+      "document_ids": [
+        "scenario-document-a41133f3d34e"
+      ],
+      "corpus_kinds": [
+        "statute"
+      ],
+      "source_urls": [
+        "https://law.go.kr/LSW/lsLawLinkInfo.do?chrClsCd=010202&lsId=009640&lsJoLnkSeq=900338789&print=print",
+        "https://www.law.go.kr/lsLinkCommonInfo.do?chrClsCd=010202&lsJoLnkSeq=1031355661"
+      ]
+    },
+    {
+      "title": "특정범죄 가중처벌 등에 관한 법률",
+      "chunk_count": 2,
+      "document_ids": [
+        "scenario-document-8333af397661"
+      ],
+      "corpus_kinds": [
+        "statute"
+      ],
+      "source_urls": [
+        "https://www.law.go.kr/lsLinkCommonInfo.do?chrClsCd=010202&lsJoLnkSeq=1028651523",
+        "https://www.law.go.kr/lsLinkCommonInfo.do?chrClsCd=010202&lsJoLnkSeq=1030974069"
+      ]
+    },
+    {
+      "title": "도로법",
+      "chunk_count": 5,
+      "document_ids": [
+        "scenario-document-fdbce41c5757"
+      ],
+      "corpus_kinds": [
+        "statute"
+      ],
+      "source_urls": [
+        "https://law.go.kr/LSW/lsRvsDocListP.do?chrClsCd=010102&lsId=001821",
+        "https://law.go.kr/lsLinkCommonInfo.do?lsJoLnkSeq=1024606963",
+        "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=284465&chrClsCd=010202&urlMode=lsInfoP&efYd=20260918&ancYnChk=0",
+        "https://www.law.go.kr/lsLinkCommonInfo.do?lsJoLnkSeq=1033034191"
+      ]
+    },
+    {
+      "title": "도로법 시행령",
+      "chunk_count": 1,
+      "document_ids": [
+        "scenario-document-b7c13a51114a"
+      ],
+      "corpus_kinds": [
+        "enforcement_decree"
+      ],
+      "source_urls": [
+        "https://law.go.kr/lsLinkCommonInfo.do?chrClsCd=010202&lspttninfSeq=110597"
+      ]
+    },
+    {
+      "title": "도로교통법 시행규칙",
+      "chunk_count": 1,
+      "document_ids": [
+        "scenario-document-2101bb6e3f92"
+      ],
+      "corpus_kinds": [
+        "enforcement_rule"
+      ],
+      "source_urls": [
+        "https://www.law.go.kr/LSW/lsLinkCommonInfo.do?lsJoLnkSeq=1020723469"
+      ]
+    },
+    {
+      "title": "차량 사고원인자의 도로시설물 복구 업무처리 지침",
+      "chunk_count": 1,
+      "document_ids": [
+        "scenario-document-990008d5780d"
+      ],
+      "corpus_kinds": [
+        "administrative_rule"
+      ],
+      "source_urls": [
+        "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000247198"
+      ]
+    },
+    {
+      "title": "119구조ㆍ구급에 관한 법률",
+      "chunk_count": 3,
+      "document_ids": [
+        "scenario-document-49ee22fec093"
+      ],
+      "corpus_kinds": [
+        "statute"
+      ],
+      "source_urls": [
+        "https://www.law.go.kr/lsInfoP.do?ancYnChk=0&lsId=011349"
+      ]
+    },
+    {
+      "title": "위험물안전관리법",
+      "chunk_count": 1,
+      "document_ids": [
+        "scenario-document-5079da7767a8"
+      ],
+      "corpus_kinds": [
+        "statute"
+      ],
+      "source_urls": [
+        "https://law.go.kr/LSW/lsLinkProc.do?ancYnChk=0&chrClsCd=010202&lsNm=%EC%9C%84%ED%97%98%EB%AC%BC%EC%95%88%EC%A0%84%EA%B4%80%EB%A6%AC%EB%B2%95&mode=20"
+      ]
+    },
+    {
+      "title": "화학물질관리법",
+      "chunk_count": 2,
+      "document_ids": [
+        "scenario-document-b84bc405d084"
+      ],
+      "corpus_kinds": [
+        "statute"
+      ],
+      "source_urls": [
+        "https://law.go.kr/LSW/lsInfoP.do?lsId=000162&urlMode=lsInfoP"
+      ]
+    },
+    {
+      "title": "물환경보전법",
+      "chunk_count": 1,
+      "document_ids": [
+        "scenario-document-133c98ab8b77"
+      ],
+      "corpus_kinds": [
+        "statute"
+      ],
+      "source_urls": [
+        "https://www.law.go.kr/lsLinkCommonInfo.do?chrClsCd=010202&lsJoLnkSeq=1027719075"
+      ]
+    },
+    {
+      "title": "산림재난방지법",
+      "chunk_count": 9,
+      "document_ids": [
+        "scenario-document-576ef0d9a955"
+      ],
+      "corpus_kinds": [
+        "statute"
+      ],
+      "source_urls": [
+        "https://www.law.go.kr/LSW/LsiJoLinkP.do?docType=JO&joNo=000400000&languageType=KO&lsNm=%EC%82%B0%EB%A6%BC%EC%9E%AC%EB%82%9C%EB%B0%A9%EC%A7%80%EB%B2%95&paras=1"
+      ]
+    },
+    {
+      "title": "야생생물 보호 및 관리에 관한 법률",
+      "chunk_count": 2,
+      "document_ids": [
+        "scenario-document-85946801fb27"
+      ],
+      "corpus_kinds": [
+        "statute"
+      ],
+      "source_urls": [
+        "https://law.go.kr/lsLinkCommonInfo.do?chrClsCd=010202&lsJoLnkSeq=1030182413",
+        "https://www.law.go.kr/LSW/lsLinkCommonInfo.do?chrClsCd=010202&lsJoLnkSeq=1029292121"
+      ]
+    },
+    {
+      "title": "소방청 재난현장 표준작전절차(SOP)",
+      "chunk_count": 13,
+      "document_ids": [
+        "scenario-document-e649e9aaea87"
+      ],
+      "corpus_kinds": [
+        "official_guidance"
+      ],
+      "source_urls": [
+        "https://www.daegu.go.kr/cmsh/daegu.go.kr/119/files/%EC%9E%AC%EB%82%9C%ED%98%84%EC%9E%A5%ED%91%9C%EC%A4%80%EC%9E%91%EC%A0%84%EC%A0%88%EC%B0%A8.pdf"
+      ]
+    },
+    {
+      "title": "산불진화기관의 임무와 역할에 관한 규정",
+      "chunk_count": 4,
+      "document_ids": [
+        "scenario-document-cf76a088fd82"
+      ],
+      "corpus_kinds": [
+        "administrative_rule"
+      ],
+      "source_urls": [
+        "https://www.law.go.kr/LSW/admRulInfoP.do?admRulSeq=2100000284258&chrClsCd=010202&urlMode=admRulLsInfoP"
+      ]
+    },
+    {
+      "title": "정부민원안내콜센터 자주묻는질문: 로드킬 발견 시 신고는 어떻게 하나요?",
+      "chunk_count": 1,
+      "document_ids": [
+        "scenario-document-d22dbff302ae"
+      ],
+      "corpus_kinds": [
+        "official_guidance"
+      ],
+      "source_urls": [
+        "https://www.110.go.kr/data/counselView.do?curPage=329&num=A01_659833&scCate1=&scCate2=&scIntt=&scText=&scType="
+      ]
+    }
+  ],
+  "date_compatibility": {
+    "expired_chunk_ids": [],
+    "future_chunk_ids": [],
+    "note": "An absent end date is not proof of current validity; absent bounds remain unknown"
+  },
+  "source_title_count": 29,
+  "sample_chunks": [
+    {
+      "chunk_id": "kr-road-traffic-act-21246-effective-20260701-article-54-paragraph-1",
+      "document_id": "kr-road-traffic-act-21246-effective-20260701-article-54",
+      "corpus_kind": "statute",
+      "title": "도로교통법 제54조(사고발생 시의 조치)",
+      "section": "제54조 제1항",
+      "content": "제54조(사고발생 시의 조치) ① 차 또는 노면전차의 운전 등 교통으로 인하여 사람을 사상하거나 물건을 손괴(이하 “교통사고”라 한다)한 경우에는 그 차 또는 노면전차의 운전자나 그 밖의 승무원(이하 “운전자등”이라 한다)은 즉시 정차하여 다음 각 호의 조치를 하여야 한다.\n\n1. 사상자를 구호하는 등 필요한 조치\n\n2. 피해자에게 인적 사항(성명ㆍ전화번호ㆍ주소 등을 말한다. 이하 제148조 및 제156조제10호에서 같다) 제공",
+      "text_origin": "prepared_legal_text",
+      "source_url": "https://www.law.go.kr/법령/도로교통법/(21246,20251230)",
+      "effective_from": "2026-07-01",
+      "effective_to": null,
+      "metadata": {
+        "law_title": "도로교통법",
+        "source_file": "sources/legal/road_traffic_act.txt",
+        "input_collection": "additional_chunks",
+        "preprocessing": "공급 자료의 개정 주석 삭제·PDF 줄바꿈 보정 상태를 유지; 병합 시 본문 변경 없음",
+        "effective_to_status": "not_provided; null is not proof of perpetual validity",
+        "document_title": "도로교통법",
+        "scenario_tags": [
+          "교통사고"
+        ],
+        "agencies": [],
+        "actors": [],
+        "report_uses": [
+          "agency_response",
+          "related_law"
+        ],
+        "application_conditions": [
+          "본문에 명시된 주체·요건·예외를 함께 확인. 기존 조문은 별도 조건 추출을 수행하지 않음."
+        ],
+        "conditions_status": "inline_source_text; not_exhaustively_structured",
+        "content_role": "official_source_text",
+        "verification_status": "기존 최종본 출처·판 정보 유지; 이번 병합에서 현행성 재확인하지 않음",
+        "editorial_metadata_fields": [
+          "scenario_tags",
+          "agencies",
+          "actors",
+          "report_uses",
+          "application_conditions",
+          "retrieval_conditions",
+          "related_chunk_ids"
+        ],
+        "retrieval_conditions": [
+          "일반 교통사고; 구체 상황별 근거와 함께 조회"
+        ],
+        "related_chunk_ids": []
+      }
+    },
+    {
+      "chunk_id": "kr-road-traffic-act-21246-effective-20260701-article-54-paragraph-2",
+      "document_id": "kr-road-traffic-act-21246-effective-20260701-article-54",
+      "corpus_kind": "statute",
+      "title": "도로교통법 제54조(사고발생 시의 조치)",
+      "section": "제54조 제2항",
+      "content": "② 제1항의 경우 그 차 또는 노면전차의 운전자등은 경찰공무원이 현장에 있을 때에는 그 경찰공무원에게, 경찰공무원이 현장에 없을 때에는 가장 가까운 국가경찰관서(지구대, 파출소 및 출장소를 포함한다. 이하 같다)에 다음 각 호의 사항을 지체 없이 신고하여야 한다. 다만, 차 또는 노면전차만 손괴된 것이 분명하고 도로에서의 위험방지와 원활한 소통을 위하여 필요한 조치를 한 경우에는 그러하지 아니하다.\n\n1. 사고가 일어난 곳\n\n2. 사상자 수 및 부상 정도\n\n3. 손괴한 물건 및 손괴 정도\n\n4. 그 밖의 조치사항 등",
+      "text_origin": "prepared_legal_text",
+      "source_url": "https://www.law.go.kr/법령/도로교통법/(21246,20251230)",
+      "effective_from": "2026-07-01",
+      "effective_to": null,
+      "metadata": {
+        "law_title": "도로교통법",
+        "source_file": "sources/legal/road_traffic_act.txt",
+        "input_collection": "additional_chunks",
+        "preprocessing": "공급 자료의 개정 주석 삭제·PDF 줄바꿈 보정 상태를 유지; 병합 시 본문 변경 없음",
+        "effective_to_status": "not_provided; null is not proof of perpetual validity",
+        "document_title": "도로교통법",
+        "scenario_tags": [
+          "교통사고"
+        ],
+        "agencies": [
+          "경찰"
+        ],
+        "actors": [
+          "경찰"
+        ],
+        "report_uses": [
+          "agency_response",
+          "related_law"
+        ],
+        "application_conditions": [
+          "본문에 명시된 주체·요건·예외를 함께 확인. 기존 조문은 별도 조건 추출을 수행하지 않음."
+        ],
+        "conditions_status": "inline_source_text; not_exhaustively_structured",
+        "content_role": "official_source_text",
+        "verification_status": "기존 최종본 출처·판 정보 유지; 이번 병합에서 현행성 재확인하지 않음",
+        "editorial_metadata_fields": [
+          "scenario_tags",
+          "agencies",
+          "actors",
+          "report_uses",
+          "application_conditions",
+          "retrieval_conditions",
+          "related_chunk_ids"
+        ],
+        "retrieval_conditions": [
+          "일반 교통사고; 구체 상황별 근거와 함께 조회"
+        ],
+        "related_chunk_ids": []
+      }
+    },
+    {
+      "chunk_id": "kr-road-traffic-act-21246-effective-20260701-article-54-paragraph-3",
+      "document_id": "kr-road-traffic-act-21246-effective-20260701-article-54",
+      "corpus_kind": "statute",
+      "title": "도로교통법 제54조(사고발생 시의 조치)",
+      "section": "제54조 제3항",
+      "content": "③ 제2항에 따라 신고를 받은 국가경찰관서의 경찰공무원은 부상자의 구호와 그 밖의 교통위험 방지를 위하여 필요하다고 인정하면 경찰공무원(자치경찰공무원은 제외한다)이 현장에 도착할 때까지 신고한 운전자등에게 현장에서 대기할 것을 명할 수 있다.",
+      "text_origin": "prepared_legal_text",
+      "source_url": "https://www.law.go.kr/법령/도로교통법/(21246,20251230)",
+      "effective_from": "2026-07-01",
+      "effective_to": null,
+      "metadata": {
+        "law_title": "도로교통법",
+        "source_file": "sources/legal/road_traffic_act.txt",
+        "input_collection": "additional_chunks",
+        "preprocessing": "공급 자료의 개정 주석 삭제·PDF 줄바꿈 보정 상태를 유지; 병합 시 본문 변경 없음",
+        "effective_to_status": "not_provided; null is not proof of perpetual validity",
+        "document_title": "도로교통법",
+        "scenario_tags": [
+          "교통사고"
+        ],
+        "agencies": [
+          "경찰"
+        ],
+        "actors": [
+          "경찰"
+        ],
+        "report_uses": [
+          "agency_response",
+          "related_law"
+        ],
+        "application_conditions": [
+          "본문에 명시된 주체·요건·예외를 함께 확인. 기존 조문은 별도 조건 추출을 수행하지 않음."
+        ],
+        "conditions_status": "inline_source_text; not_exhaustively_structured",
+        "content_role": "official_source_text",
+        "verification_status": "기존 최종본 출처·판 정보 유지; 이번 병합에서 현행성 재확인하지 않음",
+        "editorial_metadata_fields": [
+          "scenario_tags",
+          "agencies",
+          "actors",
+          "report_uses",
+          "application_conditions",
+          "retrieval_conditions",
+          "related_chunk_ids"
+        ],
+        "retrieval_conditions": [
+          "일반 교통사고; 구체 상황별 근거와 함께 조회"
+        ],
+        "related_chunk_ids": []
+      }
+    },
+    {
+      "chunk_id": "kr-road-traffic-act-21246-effective-20260701-article-54-paragraph-4",
+      "document_id": "kr-road-traffic-act-21246-effective-20260701-article-54",
+      "corpus_kind": "statute",
+      "title": "도로교통법 제54조(사고발생 시의 조치)",
+      "section": "제54조 제4항",
+      "content": "④ 경찰공무원은 교통사고를 낸 차 또는 노면전차의 운전자등에 대하여 그 현장에서 부상자의 구호와 교통안전을 위하여 필요한 지시를 명할 수 있다.",
+      "text_origin": "prepared_legal_text",
+      "source_url": "https://www.law.go.kr/법령/도로교통법/(21246,20251230)",
+      "effective_from": "2026-07-01",
+      "effective_to": null,
+      "metadata": {
+        "law_title": "도로교통법",
+        "source_file": "sources/legal/road_traffic_act.txt",
+        "input_collection": "additional_chunks",
+        "preprocessing": "공급 자료의 개정 주석 삭제·PDF 줄바꿈 보정 상태를 유지; 병합 시 본문 변경 없음",
+        "effective_to_status": "not_provided; null is not proof of perpetual validity",
+        "document_title": "도로교통법",
+        "scenario_tags": [
+          "교통사고"
+        ],
+        "agencies": [
+          "경찰"
+        ],
+        "actors": [
+          "경찰"
+        ],
+        "report_uses": [
+          "agency_response",
+          "related_law"
+        ],
+        "application_conditions": [
+          "본문에 명시된 주체·요건·예외를 함께 확인. 기존 조문은 별도 조건 추출을 수행하지 않음."
+        ],
+        "conditions_status": "inline_source_text; not_exhaustively_structured",
+        "content_role": "official_source_text",
+        "verification_status": "기존 최종본 출처·판 정보 유지; 이번 병합에서 현행성 재확인하지 않음",
+        "editorial_metadata_fields": [
+          "scenario_tags",
+          "agencies",
+          "actors",
+          "report_uses",
+          "application_conditions",
+          "retrieval_conditions",
+          "related_chunk_ids"
+        ],
+        "retrieval_conditions": [
+          "일반 교통사고; 구체 상황별 근거와 함께 조회"
+        ],
+        "related_chunk_ids": []
+      }
+    },
+    {
+      "chunk_id": "kr-road-traffic-act-21246-effective-20260701-article-54-paragraph-5",
+      "document_id": "kr-road-traffic-act-21246-effective-20260701-article-54",
+      "corpus_kind": "statute",
+      "title": "도로교통법 제54조(사고발생 시의 조치)",
+      "section": "제54조 제5항",
+      "content": "⑤ 긴급자동차, 부상자를 운반 중인 차, 우편물자동차 및 노면전차 등의 운전자는 긴급한 경우에는 동승자 등으로 하여금 제1항에 따른 조치나 제2항에 따른 신고를 하게 하고 운전을 계속할 수 있다.",
+      "text_origin": "prepared_legal_text",
+      "source_url": "https://www.law.go.kr/법령/도로교통법/(21246,20251230)",
+      "effective_from": "2026-07-01",
+      "effective_to": null,
+      "metadata": {
+        "law_title": "도로교통법",
+        "source_file": "sources/legal/road_traffic_act.txt",
+        "input_collection": "additional_chunks",
+        "preprocessing": "공급 자료의 개정 주석 삭제·PDF 줄바꿈 보정 상태를 유지; 병합 시 본문 변경 없음",
+        "effective_to_status": "not_provided; null is not proof of perpetual validity",
+        "document_title": "도로교통법",
+        "scenario_tags": [
+          "교통사고"
+        ],
+        "agencies": [],
+        "actors": [],
+        "report_uses": [
+          "agency_response",
+          "related_law"
+        ],
+        "application_conditions": [
+          "본문에 명시된 주체·요건·예외를 함께 확인. 기존 조문은 별도 조건 추출을 수행하지 않음."
+        ],
+        "conditions_status": "inline_source_text; not_exhaustively_structured",
+        "content_role": "official_source_text",
+        "verification_status": "기존 최종본 출처·판 정보 유지; 이번 병합에서 현행성 재확인하지 않음",
+        "editorial_metadata_fields": [
+          "scenario_tags",
+          "agencies",
+          "actors",
+          "report_uses",
+          "application_conditions",
+          "retrieval_conditions",
+          "related_chunk_ids"
+        ],
+        "retrieval_conditions": [
+          "일반 교통사고; 구체 상황별 근거와 함께 조회"
+        ],
+        "related_chunk_ids": []
+      }
+    },
+    {
+      "chunk_id": "kr-road-traffic-act-21246-effective-20260701-article-54-paragraph-6",
+      "document_id": "kr-road-traffic-act-21246-effective-20260701-article-54",
+      "corpus_kind": "statute",
+      "title": "도로교통법 제54조(사고발생 시의 조치)",
+      "section": "제54조 제6항",
+      "content": "⑥ 경찰공무원(자치경찰공무원은 제외한다)은 교통사고가 발생한 경우에는 대통령령으로 정하는 바에 따라 필요한 조사를 하여야 한다.",
+      "text_origin": "prepared_legal_text",
+      "source_url": "https://www.law.go.kr/법령/도로교통법/(21246,20251230)",
+      "effective_from": "2026-07-01",
+      "effective_to": null,
+      "metadata": {
+        "law_title": "도로교통법",
+        "source_file": "sources/legal/road_traffic_act.txt",
+        "input_collection": "additional_chunks",
+        "preprocessing": "공급 자료의 개정 주석 삭제·PDF 줄바꿈 보정 상태를 유지; 병합 시 본문 변경 없음",
+        "effective_to_status": "not_provided; null is not proof of perpetual validity",
+        "document_title": "도로교통법",
+        "scenario_tags": [
+          "교통사고"
+        ],
+        "agencies": [
+          "경찰"
+        ],
+        "actors": [
+          "경찰"
+        ],
+        "report_uses": [
+          "agency_response",
+          "related_law"
+        ],
+        "application_conditions": [
+          "본문에 명시된 주체·요건·예외를 함께 확인. 기존 조문은 별도 조건 추출을 수행하지 않음."
+        ],
+        "conditions_status": "inline_source_text; not_exhaustively_structured",
+        "content_role": "official_source_text",
+        "verification_status": "기존 최종본 출처·판 정보 유지; 이번 병합에서 현행성 재확인하지 않음",
+        "editorial_metadata_fields": [
+          "scenario_tags",
+          "agencies",
+          "actors",
+          "report_uses",
+          "application_conditions",
+          "retrieval_conditions",
+          "related_chunk_ids"
+        ],
+        "retrieval_conditions": [
+          "일반 교통사고; 구체 상황별 근거와 함께 조회"
+        ],
+        "related_chunk_ids": []
+      }
+    },
+    {
+      "chunk_id": "scenario-FH-R01-e649e9aaea87",
+      "document_id": "scenario-document-e649e9aaea87",
+      "corpus_kind": "official_guidance",
+      "title": "소방청 재난현장 표준작전절차(SOP) SOP225 2.1~2.6 / 인쇄쪽74(PDF84)",
+      "section": "SOP225 2.1~2.6 / 인쇄쪽74(PDF84)",
+      "content": "탑승자와 차종·적재화물을 확인하고 차량 움직임을 방지한다. 유출 연료의 특성을 고려해 진압방법을 선택한다.",
+      "text_origin": "attributed_summary",
+      "source_url": "https://www.daegu.go.kr/cmsh/daegu.go.kr/119/files/%EC%9E%AC%EB%82%9C%ED%98%84%EC%9E%A5%ED%91%9C%EC%A4%80%EC%9E%91%EC%A0%84%EC%A0%88%EC%B0%A8.pdf",
+      "effective_from": null,
+      "effective_to": null,
+      "metadata": {
+        "document_title": "소방청 재난현장 표준작전절차(SOP)",
+        "law_title": null,
+        "source_file": "sources/scenario/서비스용_상황별_법령_대응자료.pdf",
+        "selection_id": "FH-R01",
+        "selection_record_file": "sources/scenario/선별기록.json",
+        "input_collection": "scenario_selected_pdf",
+        "selected_pdf_pages": [
+          34
+        ],
+        "original_source_location": {
+          "section": "SOP225 2.1~2.6 / 인쇄쪽74(PDF84)",
+          "pages": null,
+          "note": "원출처 위치; section의 인쇄쪽/PDF쪽 표기 보존. selected_pdf_pages는 선별 PDF 위치."
+        },
+        "selection_text_sha256": "8d50b045fd9c99ec4906595d44e978cf286b5217b50806d10b6a037a755a4905",
+        "selection_source_url": "https://www.daegu.go.kr/cmsh/daegu.go.kr/119/files/%EC%9E%AC%EB%82%9C%ED%98%84%EC%9E%A5%ED%91%9C%EC%A4%80%EC%9E%91%EC%A0%84%EC%A0%88%EC%B0%A8.pdf",
+        "selection_source_version": "소방청 재난현장 표준작전절차(SOP), 대구광역시 소방안전본부 공개본; PDF 개정이력 마지막 2025.1, PDF 생성 2025-04-03; 법정 시행일 표기 없음",
+        "selection_effective_from": null,
+        "selection_conditions": [
+          "실제 차량 화재가 확인된 경우. LPG·수소·위험물 운반차량 대응은 차종·물질 확인 후 분기한다."
+        ],
+        "scenario_tags": [
+          "차량 화재·폭발 / 탑승자·차종·화물 확인",
+          "차량 화재"
+        ],
+        "actors": [
+          "소방대"
+        ],
+        "agencies": [
+          "소방"
+        ],
+        "application_conditions": [
+          "실제 차량 화재가 확인된 경우. LPG·수소·위험물 운반차량 대응은 차종·물질 확인 후 분기한다."
+        ],
+        "conditions_status": "selection_editorial_conditions_preserved",
+        "retrieval_conditions": [
+          "차량 화재·폭발 / 탑승자·차종·화물 확인"
+        ],
+        "report_uses": [
+          "agency_response"
+        ],
+        "content_role": "source_based_summary",
+        "editorial_metadata_fields": [
+          "scenario_tags",
+          "actors",
+          "agencies",
+          "application_conditions",
+          "retrieval_conditions",
+          "report_uses",
+          "related_chunk_ids"
+        ],
+        "removed_editorial_body_labels": [
+          "[공식 대응절차 요약·비원문]"
+        ],
+        "original_source_type": "official_response",
+        "verification_status": "공식 PDF 내용과 개정이력 확인(2026-10-01 열람); 비원문 요약; 2026년 후속 개정 존재 여부 미확인",
+        "verification_status_basis": "선별기록의 확인 상태 보존; 본 작업은 PDF와의 내용 대조",
+        "source_checked_at": "2026-10-01",
+        "latest_status": "2025_public_copy; subsequent_revision_unverified",
+        "effective_to_status": "not_provided; null is not proof of perpetual validity",
+        "related_chunk_ids": [],
+        "reference_resolution_note": "발췌 외 참조 조문은 원출처와 조건에서 확인. 모든 참조 조문을 수록한 코퍼스가 아님.",
+        "chunking_reason": "연관 조문·항·호·예외 또는 대응 절차를 하나의 의미 단위로 유지; 페이지 기준 분할 없음",
+        "document_revision": "2025-01",
+        "pdf_created_at": "2025-04-03",
+        "effective_date_status": "법정 시행일 표기 없음"
+      }
+    },
+    {
+      "chunk_id": "scenario-FH-R02-e649e9aaea87",
+      "document_id": "scenario-document-e649e9aaea87",
+      "corpus_kind": "official_guidance",
+      "title": "소방청 재난현장 표준작전절차(SOP) SOP225 2.8~2.11 / 인쇄쪽75(PDF85)",
+      "section": "SOP225 2.8~2.11 / 인쇄쪽75(PDF85)",
+      "content": "진압 뒤에도 가연성 증기와 유류 유출을 확인한다. 불꽃을 만드는 구조작업에 주의하고 유출유류를 제거하여 관계기관에 알린다.",
+      "text_origin": "attributed_summary",
+      "source_url": "https://www.daegu.go.kr/cmsh/daegu.go.kr/119/files/%EC%9E%AC%EB%82%9C%ED%98%84%EC%9E%A5%ED%91%9C%EC%A4%80%EC%9E%91%EC%A0%84%EC%A0%88%EC%B0%A8.pdf",
+      "effective_from": null,
+      "effective_to": null,
+      "metadata": {
+        "document_title": "소방청 재난현장 표준작전절차(SOP)",
+        "law_title": null,
+        "source_file": "sources/scenario/서비스용_상황별_법령_대응자료.pdf",
+        "selection_id": "FH-R02",
+        "selection_record_file": "sources/scenario/선별기록.json",
+        "input_collection": "scenario_selected_pdf",
+        "selected_pdf_pages": [
+          34
+        ],
+        "original_source_location": {
+          "section": "SOP225 2.8~2.11 / 인쇄쪽75(PDF85)",
+          "pages": null,
+          "note": "원출처 위치; section의 인쇄쪽/PDF쪽 표기 보존. selected_pdf_pages는 선별 PDF 위치."
+        },
+        "selection_text_sha256": "aa9e1ec8da6f89bd516a7091b029b95cd79dad6799a85f7e9a8e0ee16715e0ac",
+        "selection_source_url": "https://www.daegu.go.kr/cmsh/daegu.go.kr/119/files/%EC%9E%AC%EB%82%9C%ED%98%84%EC%9E%A5%ED%91%9C%EC%A4%80%EC%9E%91%EC%A0%84%EC%A0%88%EC%B0%A8.pdf",
+        "selection_source_version": "소방청 재난현장 표준작전절차(SOP), 대구광역시 소방안전본부 공개본; PDF 개정이력 마지막 2025.1, PDF 생성 2025-04-03; 법정 시행일 표기 없음",
+        "selection_effective_from": null,
+        "selection_conditions": [
+          "위험물 운반차량 또는 유류 유출을 현장확인한 경우. 화염 소멸만으로 위험 종료·통행 재개를 확정하지 않는다."
+        ],
+        "scenario_tags": [
+          "위험물 차량 화재 / 진압 후 증기·유류 유출",
+          "차량 화재"
+        ],
+        "actors": [
+          "소방대 / 관계기관"
+        ],
+        "agencies": [
+          "소방"
+        ],
+        "application_conditions": [
+          "위험물 운반차량 또는 유류 유출을 현장확인한 경우. 화염 소멸만으로 위험 종료·통행 재개를 확정하지 않는다."
+        ],
+        "conditions_status": "selection_editorial_conditions_preserved",
+        "retrieval_conditions": [
+          "위험물 차량 화재 / 진압 후 증기·유류 유출"
+        ],
+        "report_uses": [
+          "agency_response"
+        ],
+        "content_role": "source_based_summary",
+        "editorial_metadata_fields": [
+          "scenario_tags",
+          "actors",
+          "agencies",
+          "application_conditions",
+          "retrieval_conditions",
+          "report_uses",
+          "related_chunk_ids"
+        ],
+        "removed_editorial_body_labels": [
+          "[공식 대응절차 요약·비원문]"
+        ],
+        "original_source_type": "official_response",
+        "verification_status": "공식 PDF 내용과 개정이력 확인(2026-10-01 열람); 비원문 요약; 2026년 후속 개정 존재 여부 미확인",
+        "verification_status_basis": "선별기록의 확인 상태 보존; 본 작업은 PDF와의 내용 대조",
+        "source_checked_at": "2026-10-01",
+        "latest_status": "2025_public_copy; subsequent_revision_unverified",
+        "effective_to_status": "not_provided; null is not proof of perpetual validity",
+        "related_chunk_ids": [],
+        "reference_resolution_note": "발췌 외 참조 조문은 원출처와 조건에서 확인. 모든 참조 조문을 수록한 코퍼스가 아님.",
+        "chunking_reason": "연관 조문·항·호·예외 또는 대응 절차를 하나의 의미 단위로 유지; 페이지 기준 분할 없음",
+        "document_revision": "2025-01",
+        "pdf_created_at": "2025-04-03",
+        "effective_date_status": "법정 시행일 표기 없음"
+      }
+    },
+    {
+      "chunk_id": "scenario-traffic-10-990008d5780d",
+      "document_id": "scenario-document-990008d5780d",
+      "corpus_kind": "administrative_rule",
+      "title": "차량 사고원인자의 도로시설물 복구 업무처리 지침 제6조 확인불능 시 조치",
+      "section": "제6조 확인불능 시 조치",
+      "content": "제6조(확인불능 시 조치) 도로관리청은 제4조의 정보제공 요청에도 불구하고 원인자 거주정보 불일치 등의 사유로 원인자를 파악할 수 없는 경우 제5조의 서류를 작성ㆍ확보한 후 우선 복구조치하고 사후에 원인자를 확인할 수 있는 경우 원인자에게 도로복구 비용을 청구할 수 있다.",
+      "text_origin": "official_verbatim_excerpt",
+      "source_url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000247198",
+      "effective_from": "2024-09-13",
+      "effective_to": "2027-09-17",
+      "metadata": {
+        "document_title": "차량 사고원인자의 도로시설물 복구 업무처리 지침",
+        "law_title": "차량 사고원인자의 도로시설물 복구 업무처리 지침",
+        "source_file": "sources/scenario/서비스용_상황별_법령_대응자료.pdf",
+        "selection_id": "traffic-10",
+        "selection_record_file": "sources/scenario/선별기록.json",
+        "input_collection": "scenario_selected_pdf",
+        "selected_pdf_pages": [
+          15
+        ],
+        "original_source_location": {
+          "section": "제6조 확인불능 시 조치",
+          "pages": null,
+          "note": "원출처 위치; section의 인쇄쪽/PDF쪽 표기 보존. selected_pdf_pages는 선별 PDF 위치."
+        },
+        "selection_text_sha256": "3d03dcaa9ddb2766d8613b225b5c371442f3310eafa5bef8e1a24457914b8e8c",
+        "selection_source_url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000247198",
+        "selection_source_version": "국토교통부예규 제409호 / 시행 2024-09-13 / 유효기간 2027-09-17",
+        "selection_effective_from": "2024-09-13",
+        "selection_conditions": [
+          "사고 원인자를 확인할 수 없는 도로시설물 손상에 대한 도로관리청의 선복구 조치.",
+          "제4조 요청 및 제5조 서류 작성·확보라는 선행 조건을 보존.",
+          "비용 산출표·징수기준 등은 이번 자료에서 제외."
+        ],
+        "scenario_tags": [
+          "가드레일·도로시설 파손 / 자료 보전 및 원인자 불명 시 우선 복구",
+          "도로 시설 파손·낙하물"
+        ],
+        "actors": [
+          "도로관리청"
+        ],
+        "agencies": [
+          "도로관리청·도로관리기관"
+        ],
+        "application_conditions": [
+          "사고 원인자를 확인할 수 없는 도로시설물 손상에 대한 도로관리청의 선복구 조치.",
+          "제4조 요청 및 제5조 서류 작성·확보라는 선행 조건을 보존.",
+          "비용 산출표·징수기준 등은 이번 자료에서 제외."
+        ],
+        "conditions_status": "selection_editorial_conditions_preserved",
+        "retrieval_conditions": [
+          "가드레일·도로시설 파손 / 자료 보전 및 원인자 불명 시 우선 복구"
+        ],
+        "report_uses": [
+          "agency_response",
+          "related_law"
+        ],
+        "content_role": "official_source_text",
+        "editorial_metadata_fields": [
+          "scenario_tags",
+          "actors",
+          "agencies",
+          "application_conditions",
+          "retrieval_conditions",
+          "report_uses",
+          "related_chunk_ids"
+        ],
+        "removed_editorial_body_labels": [],
+        "original_source_type": "law",
+        "verification_status": "보관된 공식 PDF 제1~2쪽 원문 및 제12조 유효기간 확인",
+        "verification_status_basis": "선별기록의 확인 상태 보존; 본 작업은 PDF와의 내용 대조",
+        "source_checked_at": "2026-10-01",
+        "latest_status": "not_independently_rechecked_during_merge",
+        "effective_to_status": "explicit_validity_end_inclusive",
+        "related_chunk_ids": [],
+        "reference_resolution_note": "발췌 외 참조 조문은 원출처와 조건에서 확인. 모든 참조 조문을 수록한 코퍼스가 아님.",
+        "chunking_reason": "연관 조문·항·호·예외 또는 대응 절차를 하나의 의미 단위로 유지; 페이지 기준 분할 없음",
+        "effective_to_inclusive": true,
+        "effective_to_basis": "선별기록: 지침 제12조 유효기간 확인; source_version 유효기간 2027-09-17"
+      }
+    },
+    {
+      "chunk_id": "statistics-00096035906f2e8fb3c4",
+      "document_id": "document-a57b533d69c93fb5ab68",
+      "corpus_kind": "statistics",
+      "title": "한국도로교통공단_도로종류별 시간대별 교통사고 통계_20251231",
+      "section": "데이터 행 27 (헤더 제외)",
+      "content": "도로종류=특별광역시도, 시간대=04:00-06:00, 사고건수=1812, 사망자수=41, 중상자수=569, 경상자수=1702, 부상신고자수=137",
+      "text_origin": "generated_from_structured_row",
+      "source_url": "https://www.data.go.kr/data/15070257/fileData.do",
+      "effective_from": null,
+      "effective_to": null,
+      "metadata": {
+        "source_file": "sources/statistics/한국도로교통공단_도로종류별 시간대별 교통사고 통계_20251231.csv",
+        "row": 27,
+        "statistics": {
+          "도로종류": "특별광역시도",
+          "시간대": "04:00-06:00",
+          "사고건수": 1812,
+          "사망자수": 41,
+          "중상자수": 569,
+          "경상자수": 1702,
+          "부상신고자수": 137
+        },
+        "raw_statistics": {
+          "도로종류": "특별광역시도",
+          "시간대": "04:00-06:00",
+          "사고건수": "1812",
+          "사망자수": "41",
+          "중상자수": "569",
+          "경상자수": "1702",
+          "부상신고자수": "137"
+        },
+        "dimensions": {
+          "도로종류": "특별광역시도",
+          "시간대": "04:00-06:00"
+        },
+        "measure_units": {
+          "사고건수": "건",
+          "사망자수": "명",
+          "중상자수": "명",
+          "경상자수": "명",
+          "부상신고자수": "명"
+        },
+        "reference_date": "2025-12-31",
+        "reference_date_basis": "supplied_filename; not a legal effective date",
+        "dataset_family": "road_time",
+        "source_encoding": "CP949",
+        "source_url_scope": "dataset_page",
+        "source_url_note": "데이터셋 제목·파일 기준일·행 수 확인; 원본 바이트는 로컬 CSV와 대조",
+        "previous_source_url": "https://www.data.go.kr/data/15075666/fileData.do",
+        "population": "경찰에서 조사·처리한 인적 피해 교통사고",
+        "limitations": "노출량 분모 없음; 개별 영상 사고확률 아님; 서로 다른 집계표의 조건 결합 불가",
+        "document_title": "한국도로교통공단_도로종류별 시간대별 교통사고 통계_20251231",
+        "scenario_tags": [
+          "교통사고"
+        ],
+        "agencies": [],
+        "actors": [],
+        "report_uses": [
+          "statistics"
+        ],
+        "application_conditions": [],
+        "conditions_status": "not_applicable",
+        "content_role": "structured_statistics",
+        "verification_status": "local_csv_rows_verified",
+        "editorial_metadata_fields": [
+          "scenario_tags",
+          "agencies",
+          "actors",
+          "report_uses",
+          "application_conditions",
+          "retrieval_conditions",
+          "related_chunk_ids"
+        ],
+        "retrieval_conditions": [
+          "일반 교통사고; 구체 상황별 근거와 함께 조회"
+        ],
+        "related_chunk_ids": []
+      }
+    },
+    {
+      "chunk_id": "statistics-08fdc04d42ef59e1e8c6",
+      "document_id": "document-a57b533d69c93fb5ab68",
+      "corpus_kind": "statistics",
+      "title": "한국도로교통공단_도로종류별 시간대별 교통사고 통계_20251231",
+      "section": "데이터 행 57 (헤더 제외)",
+      "content": "도로종류=군도, 시간대=16:00-18:00, 사고건수=966, 사망자수=33, 중상자수=380, 경상자수=897, 부상신고자수=87",
+      "text_origin": "generated_from_structured_row",
+      "source_url": "https://www.data.go.kr/data/15070257/fileData.do",
+      "effective_from": null,
+      "effective_to": null,
+      "metadata": {
+        "source_file": "sources/statistics/한국도로교통공단_도로종류별 시간대별 교통사고 통계_20251231.csv",
+        "row": 57,
+        "statistics": {
+          "도로종류": "군도",
+          "시간대": "16:00-18:00",
+          "사고건수": 966,
+          "사망자수": 33,
+          "중상자수": 380,
+          "경상자수": 897,
+          "부상신고자수": 87
+        },
+        "raw_statistics": {
+          "도로종류": "군도",
+          "시간대": "16:00-18:00",
+          "사고건수": "966",
+          "사망자수": "33",
+          "중상자수": "380",
+          "경상자수": "897",
+          "부상신고자수": "87"
+        },
+        "dimensions": {
+          "도로종류": "군도",
+          "시간대": "16:00-18:00"
+        },
+        "measure_units": {
+          "사고건수": "건",
+          "사망자수": "명",
+          "중상자수": "명",
+          "경상자수": "명",
+          "부상신고자수": "명"
+        },
+        "reference_date": "2025-12-31",
+        "reference_date_basis": "supplied_filename; not a legal effective date",
+        "dataset_family": "road_time",
+        "source_encoding": "CP949",
+        "source_url_scope": "dataset_page",
+        "source_url_note": "데이터셋 제목·파일 기준일·행 수 확인; 원본 바이트는 로컬 CSV와 대조",
+        "previous_source_url": "https://www.data.go.kr/data/15075666/fileData.do",
+        "population": "경찰에서 조사·처리한 인적 피해 교통사고",
+        "limitations": "노출량 분모 없음; 개별 영상 사고확률 아님; 서로 다른 집계표의 조건 결합 불가",
+        "document_title": "한국도로교통공단_도로종류별 시간대별 교통사고 통계_20251231",
+        "scenario_tags": [
+          "교통사고"
+        ],
+        "agencies": [],
+        "actors": [],
+        "report_uses": [
+          "statistics"
+        ],
+        "application_conditions": [],
+        "conditions_status": "not_applicable",
+        "content_role": "structured_statistics",
+        "verification_status": "local_csv_rows_verified",
+        "editorial_metadata_fields": [
+          "scenario_tags",
+          "agencies",
+          "actors",
+          "report_uses",
+          "application_conditions",
+          "retrieval_conditions",
+          "related_chunk_ids"
+        ],
+        "retrieval_conditions": [
+          "일반 교통사고; 구체 상황별 근거와 함께 조회"
+        ],
+        "related_chunk_ids": []
+      }
+    },
+    {
+      "chunk_id": "statistics-0daff88426fb14f12142",
+      "document_id": "document-a57b533d69c93fb5ab68",
+      "corpus_kind": "statistics",
+      "title": "한국도로교통공단_도로종류별 시간대별 교통사고 통계_20251231",
+      "section": "데이터 행 70 (헤더 제외)",
+      "content": "도로종류=고속국도, 시간대=18:00-20:00, 사고건수=515, 사망자수=10, 중상자수=121, 경상자수=809, 부상신고자수=63",
+      "text_origin": "generated_from_structured_row",
+      "source_url": "https://www.data.go.kr/data/15070257/fileData.do",
+      "effective_from": null,
+      "effective_to": null,
+      "metadata": {
+        "source_file": "sources/statistics/한국도로교통공단_도로종류별 시간대별 교통사고 통계_20251231.csv",
+        "row": 70,
+        "statistics": {
+          "도로종류": "고속국도",
+          "시간대": "18:00-20:00",
+          "사고건수": 515,
+          "사망자수": 10,
+          "중상자수": 121,
+          "경상자수": 809,
+          "부상신고자수": 63
+        },
+        "raw_statistics": {
+          "도로종류": "고속국도",
+          "시간대": "18:00-20:00",
+          "사고건수": "515",
+          "사망자수": "10",
+          "중상자수": "121",
+          "경상자수": "809",
+          "부상신고자수": "63"
+        },
+        "dimensions": {
+          "도로종류": "고속국도",
+          "시간대": "18:00-20:00"
+        },
+        "measure_units": {
+          "사고건수": "건",
+          "사망자수": "명",
+          "중상자수": "명",
+          "경상자수": "명",
+          "부상신고자수": "명"
+        },
+        "reference_date": "2025-12-31",
+        "reference_date_basis": "supplied_filename; not a legal effective date",
+        "dataset_family": "road_time",
+        "source_encoding": "CP949",
+        "source_url_scope": "dataset_page",
+        "source_url_note": "데이터셋 제목·파일 기준일·행 수 확인; 원본 바이트는 로컬 CSV와 대조",
+        "previous_source_url": "https://www.data.go.kr/data/15075666/fileData.do",
+        "population": "경찰에서 조사·처리한 인적 피해 교통사고",
+        "limitations": "노출량 분모 없음; 개별 영상 사고확률 아님; 서로 다른 집계표의 조건 결합 불가",
+        "document_title": "한국도로교통공단_도로종류별 시간대별 교통사고 통계_20251231",
+        "scenario_tags": [
+          "교통사고"
+        ],
+        "agencies": [],
+        "actors": [],
+        "report_uses": [
+          "statistics"
+        ],
+        "application_conditions": [],
+        "conditions_status": "not_applicable",
+        "content_role": "structured_statistics",
+        "verification_status": "local_csv_rows_verified",
+        "editorial_metadata_fields": [
+          "scenario_tags",
+          "agencies",
+          "actors",
+          "report_uses",
+          "application_conditions",
+          "retrieval_conditions",
+          "related_chunk_ids"
+        ],
+        "retrieval_conditions": [
+          "일반 교통사고; 구체 상황별 근거와 함께 조회"
+        ],
+        "related_chunk_ids": []
+      }
+    },
+    {
+      "chunk_id": "statistics-0e072b25cdb896ac843c",
+      "document_id": "document-a57b533d69c93fb5ab68",
+      "corpus_kind": "statistics",
+      "title": "한국도로교통공단_도로종류별 시간대별 교통사고 통계_20251231",
+      "section": "데이터 행 48 (헤더 제외)",
+      "content": "도로종류=시도, 시간대=22:00-24:00, 사고건수=3157, 사망자수=47, 중상자수=857, 경상자수=3291, 부상신고자수=305",
+      "text_origin": "generated_from_structured_row",
+      "source_url": "https://www.data.go.kr/data/15070257/fileData.do",
+      "effective_from": null,
+      "effective_to": null,
+      "metadata": {
+        "source_file": "sources/statistics/한국도로교통공단_도로종류별 시간대별 교통사고 통계_20251231.csv",
+        "row": 48,
+        "statistics": {
+          "도로종류": "시도",
+          "시간대": "22:00-24:00",
+          "사고건수": 3157,
+          "사망자수": 47,
+          "중상자수": 857,
+          "경상자수": 3291,
+          "부상신고자수": 305
+        },
+        "raw_statistics": {
+          "도로종류": "시도",
+          "시간대": "22:00-24:00",
+          "사고건수": "3157",
+          "사망자수": "47",
+          "중상자수": "857",
+          "경상자수": "3291",
+          "부상신고자수": "305"
+        },
+        "dimensions": {
+          "도로종류": "시도",
+          "시간대": "22:00-24:00"
+        },
+        "measure_units": {
+          "사고건수": "건",
+          "사망자수": "명",
+          "중상자수": "명",
+          "경상자수": "명",
+          "부상신고자수": "명"
+        },
+        "reference_date": "2025-12-31",
+        "reference_date_basis": "supplied_filename; not a legal effective date",
+        "dataset_family": "road_time",
+        "source_encoding": "CP949",
+        "source_url_scope": "dataset_page",
+        "source_url_note": "데이터셋 제목·파일 기준일·행 수 확인; 원본 바이트는 로컬 CSV와 대조",
+        "previous_source_url": "https://www.data.go.kr/data/15075666/fileData.do",
+        "population": "경찰에서 조사·처리한 인적 피해 교통사고",
+        "limitations": "노출량 분모 없음; 개별 영상 사고확률 아님; 서로 다른 집계표의 조건 결합 불가",
+        "document_title": "한국도로교통공단_도로종류별 시간대별 교통사고 통계_20251231",
+        "scenario_tags": [
+          "교통사고"
+        ],
+        "agencies": [],
+        "actors": [],
+        "report_uses": [
+          "statistics"
+        ],
+        "application_conditions": [],
+        "conditions_status": "not_applicable",
+        "content_role": "structured_statistics",
+        "verification_status": "local_csv_rows_verified",
+        "editorial_metadata_fields": [
+          "scenario_tags",
+          "agencies",
+          "actors",
+          "report_uses",
+          "application_conditions",
+          "retrieval_conditions",
+          "related_chunk_ids"
+        ],
+        "retrieval_conditions": [
+          "일반 교통사고; 구체 상황별 근거와 함께 조회"
+        ],
+        "related_chunk_ids": []
+      }
+    },
+    {
+      "chunk_id": "statistics-11690915a1f4a9b6d342",
+      "document_id": "document-a57b533d69c93fb5ab68",
+      "corpus_kind": "statistics",
+      "title": "한국도로교통공단_도로종류별 시간대별 교통사고 통계_20251231",
+      "section": "데이터 행 52 (헤더 제외)",
+      "content": "도로종류=군도, 시간대=06:00-08:00, 사고건수=393, 사망자수=17, 중상자수=143, 경상자수=318, 부상신고자수=29",
+      "text_origin": "generated_from_structured_row",
+      "source_url": "https://www.data.go.kr/data/15070257/fileData.do",
+      "effective_from": null,
+      "effective_to": null,
+      "metadata": {
+        "source_file": "sources/statistics/한국도로교통공단_도로종류별 시간대별 교통사고 통계_20251231.csv",
+        "row": 52,
+        "statistics": {
+          "도로종류": "군도",
+          "시간대": "06:00-08:00",
+          "사고건수": 393,
+          "사망자수": 17,
+          "중상자수": 143,
+          "경상자수": 318,
+          "부상신고자수": 29
+        },
+        "raw_statistics": {
+          "도로종류": "군도",
+          "시간대": "06:00-08:00",
+          "사고건수": "393",
+          "사망자수": "17",
+          "중상자수": "143",
+          "경상자수": "318",
+          "부상신고자수": "29"
+        },
+        "dimensions": {
+          "도로종류": "군도",
+          "시간대": "06:00-08:00"
+        },
+        "measure_units": {
+          "사고건수": "건",
+          "사망자수": "명",
+          "중상자수": "명",
+          "경상자수": "명",
+          "부상신고자수": "명"
+        },
+        "reference_date": "2025-12-31",
+        "reference_date_basis": "supplied_filename; not a legal effective date",
+        "dataset_family": "road_time",
+        "source_encoding": "CP949",
+        "source_url_scope": "dataset_page",
+        "source_url_note": "데이터셋 제목·파일 기준일·행 수 확인; 원본 바이트는 로컬 CSV와 대조",
+        "previous_source_url": "https://www.data.go.kr/data/15075666/fileData.do",
+        "population": "경찰에서 조사·처리한 인적 피해 교통사고",
+        "limitations": "노출량 분모 없음; 개별 영상 사고확률 아님; 서로 다른 집계표의 조건 결합 불가",
+        "document_title": "한국도로교통공단_도로종류별 시간대별 교통사고 통계_20251231",
+        "scenario_tags": [
+          "교통사고"
+        ],
+        "agencies": [],
+        "actors": [],
+        "report_uses": [
+          "statistics"
+        ],
+        "application_conditions": [],
+        "conditions_status": "not_applicable",
+        "content_role": "structured_statistics",
+        "verification_status": "local_csv_rows_verified",
+        "editorial_metadata_fields": [
+          "scenario_tags",
+          "agencies",
+          "actors",
+          "report_uses",
+          "application_conditions",
+          "retrieval_conditions",
+          "related_chunk_ids"
+        ],
+        "retrieval_conditions": [
+          "일반 교통사고; 구체 상황별 근거와 함께 조회"
+        ],
+        "related_chunk_ids": []
+      }
+    },
+    {
+      "chunk_id": "statistics-136e6feb35ec192ed9c0",
+      "document_id": "document-a57b533d69c93fb5ab68",
+      "corpus_kind": "statistics",
+      "title": "한국도로교통공단_도로종류별 시간대별 교통사고 통계_20251231",
+      "section": "데이터 행 72 (헤더 제외)",
+      "content": "도로종류=고속국도, 시간대=22:00-24:00, 사고건수=281, 사망자수=15, 중상자수=91, 경상자수=412, 부상신고자수=22",
+      "text_origin": "generated_from_structured_row",
+      "source_url": "https://www.data.go.kr/data/15070257/fileData.do",
+      "effective_from": null,
+      "effective_to": null,
+      "metadata": {
+        "source_file": "sources/statistics/한국도로교통공단_도로종류별 시간대별 교통사고 통계_20251231.csv",
+        "row": 72,
+        "statistics": {
+          "도로종류": "고속국도",
+          "시간대": "22:00-24:00",
+          "사고건수": 281,
+          "사망자수": 15,
+          "중상자수": 91,
+          "경상자수": 412,
+          "부상신고자수": 22
+        },
+        "raw_statistics": {
+          "도로종류": "고속국도",
+          "시간대": "22:00-24:00",
+          "사고건수": "281",
+          "사망자수": "15",
+          "중상자수": "91",
+          "경상자수": "412",
+          "부상신고자수": "22"
+        },
+        "dimensions": {
+          "도로종류": "고속국도",
+          "시간대": "22:00-24:00"
+        },
+        "measure_units": {
+          "사고건수": "건",
+          "사망자수": "명",
+          "중상자수": "명",
+          "경상자수": "명",
+          "부상신고자수": "명"
+        },
+        "reference_date": "2025-12-31",
+        "reference_date_basis": "supplied_filename; not a legal effective date",
+        "dataset_family": "road_time",
+        "source_encoding": "CP949",
+        "source_url_scope": "dataset_page",
+        "source_url_note": "데이터셋 제목·파일 기준일·행 수 확인; 원본 바이트는 로컬 CSV와 대조",
+        "previous_source_url": "https://www.data.go.kr/data/15075666/fileData.do",
+        "population": "경찰에서 조사·처리한 인적 피해 교통사고",
+        "limitations": "노출량 분모 없음; 개별 영상 사고확률 아님; 서로 다른 집계표의 조건 결합 불가",
+        "document_title": "한국도로교통공단_도로종류별 시간대별 교통사고 통계_20251231",
+        "scenario_tags": [
+          "교통사고"
+        ],
+        "agencies": [],
+        "actors": [],
+        "report_uses": [
+          "statistics"
+        ],
+        "application_conditions": [],
+        "conditions_status": "not_applicable",
+        "content_role": "structured_statistics",
+        "verification_status": "local_csv_rows_verified",
+        "editorial_metadata_fields": [
+          "scenario_tags",
+          "agencies",
+          "actors",
+          "report_uses",
+          "application_conditions",
+          "retrieval_conditions",
+          "related_chunk_ids"
+        ],
+        "retrieval_conditions": [
+          "일반 교통사고; 구체 상황별 근거와 함께 조회"
+        ],
+        "related_chunk_ids": []
+      }
+    },
+    {
+      "chunk_id": "statistics-19718635a737fc66de55",
+      "document_id": "document-a57b533d69c93fb5ab68",
+      "corpus_kind": "statistics",
+      "title": "한국도로교통공단_도로종류별 시간대별 교통사고 통계_20251231",
+      "section": "데이터 행 56 (헤더 제외)",
+      "content": "도로종류=군도, 시간대=14:00-16:00, 사고건수=930, 사망자수=24, 중상자수=328, 경상자수=902, 부상신고자수=82",
+      "text_origin": "generated_from_structured_row",
+      "source_url": "https://www.data.go.kr/data/15070257/fileData.do",
+      "effective_from": null,
+      "effective_to": null,
+      "metadata": {
+        "source_file": "sources/statistics/한국도로교통공단_도로종류별 시간대별 교통사고 통계_20251231.csv",
+        "row": 56,
+        "statistics": {
+          "도로종류": "군도",
+          "시간대": "14:00-16:00",
+          "사고건수": 930,
+          "사망자수": 24,
+          "중상자수": 328,
+          "경상자수": 902,
+          "부상신고자수": 82
+        },
+        "raw_statistics": {
+          "도로종류": "군도",
+          "시간대": "14:00-16:00",
+          "사고건수": "930",
+          "사망자수": "24",
+          "중상자수": "328",
+          "경상자수": "902",
+          "부상신고자수": "82"
+        },
+        "dimensions": {
+          "도로종류": "군도",
+          "시간대": "14:00-16:00"
+        },
+        "measure_units": {
+          "사고건수": "건",
+          "사망자수": "명",
+          "중상자수": "명",
+          "경상자수": "명",
+          "부상신고자수": "명"
+        },
+        "reference_date": "2025-12-31",
+        "reference_date_basis": "supplied_filename; not a legal effective date",
+        "dataset_family": "road_time",
+        "source_encoding": "CP949",
+        "source_url_scope": "dataset_page",
+        "source_url_note": "데이터셋 제목·파일 기준일·행 수 확인; 원본 바이트는 로컬 CSV와 대조",
+        "previous_source_url": "https://www.data.go.kr/data/15075666/fileData.do",
+        "population": "경찰에서 조사·처리한 인적 피해 교통사고",
+        "limitations": "노출량 분모 없음; 개별 영상 사고확률 아님; 서로 다른 집계표의 조건 결합 불가",
+        "document_title": "한국도로교통공단_도로종류별 시간대별 교통사고 통계_20251231",
+        "scenario_tags": [
+          "교통사고"
+        ],
+        "agencies": [],
+        "actors": [],
+        "report_uses": [
+          "statistics"
+        ],
+        "application_conditions": [],
+        "conditions_status": "not_applicable",
+        "content_role": "structured_statistics",
+        "verification_status": "local_csv_rows_verified",
+        "editorial_metadata_fields": [
+          "scenario_tags",
+          "agencies",
+          "actors",
+          "report_uses",
+          "application_conditions",
+          "retrieval_conditions",
+          "related_chunk_ids"
+        ],
+        "retrieval_conditions": [
+          "일반 교통사고; 구체 상황별 근거와 함께 조회"
+        ],
+        "related_chunk_ids": []
+      }
+    },
+    {
+      "chunk_id": "statistics-19a0779fa1ed65d16a82",
+      "document_id": "document-a57b533d69c93fb5ab68",
+      "corpus_kind": "statistics",
+      "title": "한국도로교통공단_도로종류별 시간대별 교통사고 통계_20251231",
+      "section": "데이터 행 26 (헤더 제외)",
+      "content": "도로종류=특별광역시도, 시간대=02:00-04:00, 사고건수=1489, 사망자수=42, 중상자수=416, 경상자수=1529, 부상신고자수=127",
+      "text_origin": "generated_from_structured_row",
+      "source_url": "https://www.data.go.kr/data/15070257/fileData.do",
+      "effective_from": null,
+      "effective_to": null,
+      "metadata": {
+        "source_file": "sources/statistics/한국도로교통공단_도로종류별 시간대별 교통사고 통계_20251231.csv",
+        "row": 26,
+        "statistics": {
+          "도로종류": "특별광역시도",
+          "시간대": "02:00-04:00",
+          "사고건수": 1489,
+          "사망자수": 42,
+          "중상자수": 416,
+          "경상자수": 1529,
+          "부상신고자수": 127
+        },
+        "raw_statistics": {
+          "도로종류": "특별광역시도",
+          "시간대": "02:00-04:00",
+          "사고건수": "1489",
+          "사망자수": "42",
+          "중상자수": "416",
+          "경상자수": "1529",
+          "부상신고자수": "127"
+        },
+        "dimensions": {
+          "도로종류": "특별광역시도",
+          "시간대": "02:00-04:00"
+        },
+        "measure_units": {
+          "사고건수": "건",
+          "사망자수": "명",
+          "중상자수": "명",
+          "경상자수": "명",
+          "부상신고자수": "명"
+        },
+        "reference_date": "2025-12-31",
+        "reference_date_basis": "supplied_filename; not a legal effective date",
+        "dataset_family": "road_time",
+        "source_encoding": "CP949",
+        "source_url_scope": "dataset_page",
+        "source_url_note": "데이터셋 제목·파일 기준일·행 수 확인; 원본 바이트는 로컬 CSV와 대조",
+        "previous_source_url": "https://www.data.go.kr/data/15075666/fileData.do",
+        "population": "경찰에서 조사·처리한 인적 피해 교통사고",
+        "limitations": "노출량 분모 없음; 개별 영상 사고확률 아님; 서로 다른 집계표의 조건 결합 불가",
+        "document_title": "한국도로교통공단_도로종류별 시간대별 교통사고 통계_20251231",
+        "scenario_tags": [
+          "교통사고"
+        ],
+        "agencies": [],
+        "actors": [],
+        "report_uses": [
+          "statistics"
+        ],
+        "application_conditions": [],
+        "conditions_status": "not_applicable",
+        "content_role": "structured_statistics",
+        "verification_status": "local_csv_rows_verified",
+        "editorial_metadata_fields": [
+          "scenario_tags",
+          "agencies",
+          "actors",
+          "report_uses",
+          "application_conditions",
+          "retrieval_conditions",
+          "related_chunk_ids"
+        ],
+        "retrieval_conditions": [
+          "일반 교통사고; 구체 상황별 근거와 함께 조회"
+        ],
+        "related_chunk_ids": []
+      }
+    },
+    {
+      "chunk_id": "statistics-19d9aa02d3fd82d290f4",
+      "document_id": "document-a57b533d69c93fb5ab68",
+      "corpus_kind": "statistics",
+      "title": "한국도로교통공단_도로종류별 시간대별 교통사고 통계_20251231",
+      "section": "데이터 행 68 (헤더 제외)",
+      "content": "도로종류=고속국도, 시간대=14:00-16:00, 사고건수=666, 사망자수=11, 중상자수=199, 경상자수=1304, 부상신고자수=119",
+      "text_origin": "generated_from_structured_row",
+      "source_url": "https://www.data.go.kr/data/15070257/fileData.do",
+      "effective_from": null,
+      "effective_to": null,
+      "metadata": {
+        "source_file": "sources/statistics/한국도로교통공단_도로종류별 시간대별 교통사고 통계_20251231.csv",
+        "row": 68,
+        "statistics": {
+          "도로종류": "고속국도",
+          "시간대": "14:00-16:00",
+          "사고건수": 666,
+          "사망자수": 11,
+          "중상자수": 199,
+          "경상자수": 1304,
+          "부상신고자수": 119
+        },
+        "raw_statistics": {
+          "도로종류": "고속국도",
+          "시간대": "14:00-16:00",
+          "사고건수": "666",
+          "사망자수": "11",
+          "중상자수": "199",
+          "경상자수": "1304",
+          "부상신고자수": "119"
+        },
+        "dimensions": {
+          "도로종류": "고속국도",
+          "시간대": "14:00-16:00"
+        },
+        "measure_units": {
+          "사고건수": "건",
+          "사망자수": "명",
+          "중상자수": "명",
+          "경상자수": "명",
+          "부상신고자수": "명"
+        },
+        "reference_date": "2025-12-31",
+        "reference_date_basis": "supplied_filename; not a legal effective date",
+        "dataset_family": "road_time",
+        "source_encoding": "CP949",
+        "source_url_scope": "dataset_page",
+        "source_url_note": "데이터셋 제목·파일 기준일·행 수 확인; 원본 바이트는 로컬 CSV와 대조",
+        "previous_source_url": "https://www.data.go.kr/data/15075666/fileData.do",
+        "population": "경찰에서 조사·처리한 인적 피해 교통사고",
+        "limitations": "노출량 분모 없음; 개별 영상 사고확률 아님; 서로 다른 집계표의 조건 결합 불가",
+        "document_title": "한국도로교통공단_도로종류별 시간대별 교통사고 통계_20251231",
+        "scenario_tags": [
+          "교통사고"
+        ],
+        "agencies": [],
+        "actors": [],
+        "report_uses": [
+          "statistics"
+        ],
+        "application_conditions": [],
+        "conditions_status": "not_applicable",
+        "content_role": "structured_statistics",
+        "verification_status": "local_csv_rows_verified",
+        "editorial_metadata_fields": [
+          "scenario_tags",
+          "agencies",
+          "actors",
+          "report_uses",
+          "application_conditions",
+          "retrieval_conditions",
+          "related_chunk_ids"
+        ],
+        "retrieval_conditions": [
+          "일반 교통사고; 구체 상황별 근거와 함께 조회"
+        ],
+        "related_chunk_ids": []
+      }
+    },
+    {
+      "chunk_id": "statistics-1c097f93fae09355c255",
+      "document_id": "document-a57b533d69c93fb5ab68",
+      "corpus_kind": "statistics",
+      "title": "한국도로교통공단_도로종류별 시간대별 교통사고 통계_20251231",
+      "section": "데이터 행 43 (헤더 제외)",
+      "content": "도로종류=시도, 시간대=12:00-14:00, 사고건수=6760, 사망자수=60, 중상자수=1688, 경상자수=7386, 부상신고자수=697",
+      "text_origin": "generated_from_structured_row",
+      "source_url": "https://www.data.go.kr/data/15070257/fileData.do",
+      "effective_from": null,
+      "effective_to": null,
+      "metadata": {
+        "source_file": "sources/statistics/한국도로교통공단_도로종류별 시간대별 교통사고 통계_20251231.csv",
+        "row": 43,
+        "statistics": {
+          "도로종류": "시도",
+          "시간대": "12:00-14:00",
+          "사고건수": 6760,
+          "사망자수": 60,
+          "중상자수": 1688,
+          "경상자수": 7386,
+          "부상신고자수": 697
+        },
+        "raw_statistics": {
+          "도로종류": "시도",
+          "시간대": "12:00-14:00",
+          "사고건수": "6760",
+          "사망자수": "60",
+          "중상자수": "1688",
+          "경상자수": "7386",
+          "부상신고자수": "697"
+        },
+        "dimensions": {
+          "도로종류": "시도",
+          "시간대": "12:00-14:00"
+        },
+        "measure_units": {
+          "사고건수": "건",
+          "사망자수": "명",
+          "중상자수": "명",
+          "경상자수": "명",
+          "부상신고자수": "명"
+        },
+        "reference_date": "2025-12-31",
+        "reference_date_basis": "supplied_filename; not a legal effective date",
+        "dataset_family": "road_time",
+        "source_encoding": "CP949",
+        "source_url_scope": "dataset_page",
+        "source_url_note": "데이터셋 제목·파일 기준일·행 수 확인; 원본 바이트는 로컬 CSV와 대조",
+        "previous_source_url": "https://www.data.go.kr/data/15075666/fileData.do",
+        "population": "경찰에서 조사·처리한 인적 피해 교통사고",
+        "limitations": "노출량 분모 없음; 개별 영상 사고확률 아님; 서로 다른 집계표의 조건 결합 불가",
+        "document_title": "한국도로교통공단_도로종류별 시간대별 교통사고 통계_20251231",
+        "scenario_tags": [
+          "교통사고"
+        ],
+        "agencies": [],
+        "actors": [],
+        "report_uses": [
+          "statistics"
+        ],
+        "application_conditions": [],
+        "conditions_status": "not_applicable",
+        "content_role": "structured_statistics",
+        "verification_status": "local_csv_rows_verified",
+        "editorial_metadata_fields": [
+          "scenario_tags",
+          "agencies",
+          "actors",
+          "report_uses",
+          "application_conditions",
+          "retrieval_conditions",
+          "related_chunk_ids"
+        ],
+        "retrieval_conditions": [
+          "일반 교통사고; 구체 상황별 근거와 함께 조회"
+        ],
+        "related_chunk_ids": []
+      }
+    },
+    {
+      "chunk_id": "statistics-1e9e5ad1ceb8d3d95a62",
+      "document_id": "document-a57b533d69c93fb5ab68",
+      "corpus_kind": "statistics",
+      "title": "한국도로교통공단_도로종류별 시간대별 교통사고 통계_20251231",
+      "section": "데이터 행 29 (헤더 제외)",
+      "content": "도로종류=특별광역시도, 시간대=08:00-10:00, 사고건수=8187, 사망자수=46, 중상자수=1859, 경상자수=8302, 부상신고자수=678",
+      "text_origin": "generated_from_structured_row",
+      "source_url": "https://www.data.go.kr/data/15070257/fileData.do",
+      "effective_from": null,
+      "effective_to": null,
+      "metadata": {
+        "source_file": "sources/statistics/한국도로교통공단_도로종류별 시간대별 교통사고 통계_20251231.csv",
+        "row": 29,
+        "statistics": {
+          "도로종류": "특별광역시도",
+          "시간대": "08:00-10:00",
+          "사고건수": 8187,
+          "사망자수": 46,
+          "중상자수": 1859,
+          "경상자수": 8302,
+          "부상신고자수": 678
+        },
+        "raw_statistics": {
+          "도로종류": "특별광역시도",
+          "시간대": "08:00-10:00",
+          "사고건수": "8187",
+          "사망자수": "46",
+          "중상자수": "1859",
+          "경상자수": "8302",
+          "부상신고자수": "678"
+        },
+        "dimensions": {
+          "도로종류": "특별광역시도",
+          "시간대": "08:00-10:00"
+        },
+        "measure_units": {
+          "사고건수": "건",
+          "사망자수": "명",
+          "중상자수": "명",
+          "경상자수": "명",
+          "부상신고자수": "명"
+        },
+        "reference_date": "2025-12-31",
+        "reference_date_basis": "supplied_filename; not a legal effective date",
+        "dataset_family": "road_time",
+        "source_encoding": "CP949",
+        "source_url_scope": "dataset_page",
+        "source_url_note": "데이터셋 제목·파일 기준일·행 수 확인; 원본 바이트는 로컬 CSV와 대조",
+        "previous_source_url": "https://www.data.go.kr/data/15075666/fileData.do",
+        "population": "경찰에서 조사·처리한 인적 피해 교통사고",
+        "limitations": "노출량 분모 없음; 개별 영상 사고확률 아님; 서로 다른 집계표의 조건 결합 불가",
+        "document_title": "한국도로교통공단_도로종류별 시간대별 교통사고 통계_20251231",
+        "scenario_tags": [
+          "교통사고"
+        ],
+        "agencies": [],
+        "actors": [],
+        "report_uses": [
+          "statistics"
+        ],
+        "application_conditions": [],
+        "conditions_status": "not_applicable",
+        "content_role": "structured_statistics",
+        "verification_status": "local_csv_rows_verified",
+        "editorial_metadata_fields": [
+          "scenario_tags",
+          "agencies",
+          "actors",
+          "report_uses",
+          "application_conditions",
+          "retrieval_conditions",
+          "related_chunk_ids"
+        ],
+        "retrieval_conditions": [
+          "일반 교통사고; 구체 상황별 근거와 함께 조회"
+        ],
+        "related_chunk_ids": []
+      }
+    }
+  ]
+}

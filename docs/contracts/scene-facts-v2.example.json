@@ -1,0 +1,63 @@
+{
+  "schema_version": "scene-facts-v2",
+  "description": "구조 예시이며 실제 영상 판정이 아닙니다.",
+  "accident_presence": {
+    "state": "unknown",
+    "reason": "클립 관찰 전",
+    "evidence": []
+  },
+  "accident_type": null,
+  "accident_type_evidence": [],
+  "scene_conditions": {
+    "day_time": null,
+    "weather": null,
+    "day_time_evidence": [],
+    "weather_evidence": []
+  },
+  "involved_objects": [],
+  "features": {
+    "mountain_road": {
+      "state": "unknown",
+      "reason": "클립 관찰 전",
+      "evidence": []
+    },
+    "visible_vegetation_near_fire": {
+      "state": "unknown",
+      "reason": "클립 관찰 전",
+      "evidence": []
+    },
+    "flames": {
+      "state": "unknown",
+      "reason": "클립 관찰 전",
+      "evidence": []
+    },
+    "smoke": {
+      "state": "unknown",
+      "reason": "클립 관찰 전",
+      "evidence": []
+    },
+    "debris": {
+      "state": "unknown",
+      "reason": "클립 관찰 전",
+      "evidence": []
+    },
+    "lane_blockage": {
+      "state": "unknown",
+      "reason": "클립 관찰 전",
+      "evidence": []
+    },
+    "affected_people_visible": {
+      "state": "unknown",
+      "reason": "클립 관찰 전",
+      "evidence": []
+    },
+    "visible_forest_burning": {
+      "state": "unknown",
+      "reason": "클립 관찰 전",
+      "evidence": []
+    }
+  },
+  "uncertainties": [
+    "사고 여부 및 현장 위험 확인 필요"
+  ]
+}

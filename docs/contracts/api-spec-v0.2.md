@@ -4,7 +4,11 @@
 
 작성일: 2026-09-27
 
-상태: 공개 API와 Modal 호출 코드 구현, 실제 GPU·S3·Gemini E2E 검증 전
+2026-10-04 확장: `/api/v1/vlm-options`의 기본 프롬프트 ID는 `scene-facts-v2`입니다.
+완료 후보의 `vlm.raw_output`, `vlm.request.input`, `vlm.validation`, `rag_input.features`에는
+[VLM 영상 관찰 계약](../VLM_FACTS_VALIDATION.md)이 적용됩니다. 기존 결과 JSON도 계속 조회할 수 있습니다.
+
+상태: 공개 API·Modal·S3·Gemini·RAG 연결 구현 및 실제 서비스 E2E 확인. 검증 범위는 [진행 기록](../PROGRESS.md) 참고.
 기준: [PRD](../../PROJECT_BRIEF.md) · [공통 서비스 계약](service_contract.md) · [가상 응답](demo-analysis-cases-v0.2.json)
 
 이 문서는 Streamlit과 FastAPI 사이의 HTTP 계약을 정의한다. BE 작업 프로세스의 Modal 제출·S3 결과 회수는
@@ -541,8 +545,6 @@ Streamlit은 terminal 상태(`completed`, `partial`, `failed`)에서 자동 조�
 ## 10. Modal GPU 함수 연결
 
 Modal 호출은 Streamlit이 사용하는 HTTP API가 아니다. BE 작업 프로세스가 queued run을 `spawn()`으로 제출하고 `modal_call_id`를 DB에 저장한다. 완료는 같은 프로세스가 호출 ID로 조회한다. 함수는 업로드 원본과 가중치를 S3에서 읽고 event/final manifest 및 clip·frame을 S3에 저장한다. BE는 결과 경로·SHA256·시각·coverage를 검증한 후 `GET /jobs/{job_id}` 응답에 후보와 상태를 반영한다. 함수 입력·출력과 실패 규칙은 [Modal 추론 연결 계약](modal-inference-v1.md)에 정의한다.
-
-기존 `/internal/v1/workers/*`와 `/internal/v1/runs/*` 호환 경로는 현재 GPU 실행 흐름에서 사용하지 않는다. 새 화면 또는 Modal 함수에서 호출하지 않는다.
 
 ## 11. 확정이 필요한 항목
 

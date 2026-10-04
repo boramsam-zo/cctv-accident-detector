@@ -1,0 +1,19 @@
+name: cctv-accident-demo
+
+services:
+  streamlit:
+    image: cctv-accident-app:dev
+    build:
+      context: ../..
+      dockerfile: deploy/compose/Dockerfile.app
+    init: true
+    command: ["streamlit", "run", "apps/streamlit/app.py", "--server.address", "0.0.0.0", "--server.port", "8501", "--server.headless", "true"]
+    environment:
+      APP_MODE: demo
+    ports:
+      - "127.0.0.1:8501:8501"
+    volumes:
+      - ../../apps:/app/apps:ro
+      - ../../.streamlit:/app/.streamlit:ro
+      - ../../docs/contracts:/app/docs/contracts:ro
+    restart: unless-stopped

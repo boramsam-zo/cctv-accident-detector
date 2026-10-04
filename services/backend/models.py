@@ -1,9 +1,11 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, ForeignKey, Integer, JSON, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Integer, JSON, String, Text, UniqueConstraint
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .db import Base
+from .vector_type import Vector768
 
 
 def now() -> datetime:
@@ -25,6 +27,16 @@ class Video(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
 
+class AnalysisProfile(Base):
+    __tablename__ = "analysis_profiles"
+    id: Mapped[str] = mapped_column(String(120), primary_key=True)
+    display_name: Mapped[str] = mapped_column(String(200))
+    description: Mapped[str] = mapped_column(Text, default="")
+    models: Mapped[dict] = mapped_column(JSON)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
 class Job(Base):
     __tablename__ = "jobs"
     id: Mapped[str] = mapped_column(String(80), primary_key=True)
@@ -41,14 +53,10 @@ class Run(Base):
     status: Mapped[str] = mapped_column(String(30), default="queued")
     outcome: Mapped[str] = mapped_column(String(30), default="pending")
     modal_call_id: Mapped[str | None] = mapped_column(String(120))
-    pod_id: Mapped[str | None] = mapped_column(String(120))
-    worker_instance_id: Mapped[str | None] = mapped_column(String(120))
-    processed_pts: Mapped[float | None]
     attempt: Mapped[int] = mapped_column(Integer, default=0)
     manifest_key: Mapped[str | None] = mapped_column(String(512))
     result: Mapped[dict | None] = mapped_column(JSON)
     error: Mapped[dict | None] = mapped_column(JSON)
-    lease_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, onupdate=now)
 
@@ -72,19 +80,6 @@ class Event(Base):
     manifest_key: Mapped[str] = mapped_column(String(512))
     manifest_sha256: Mapped[str] = mapped_column(String(64))
     data: Mapped[dict] = mapped_column(JSON)
-
-
-class PodWorker(Base):
-    __tablename__ = "pod_workers"
-    id: Mapped[str] = mapped_column(String(120), primary_key=True)
-    pod_id: Mapped[str] = mapped_column(String(120))
-    status: Mapped[str] = mapped_column(String(30))
-    models: Mapped[dict] = mapped_column(JSON)
-    active_run_id: Mapped[str | None] = mapped_column(String(80))
-    processed_pts: Mapped[float | None]
-    gpu_memory_used_bytes: Mapped[int | None]
-    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    last_heartbeat_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
 
 class Report(Base):
@@ -115,3 +110,26 @@ class Idempotency(Base):
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     request_hash: Mapped[str] = mapped_column(String(64))
     response: Mapped[dict] = mapped_column(JSON)
+
+
+class RagCorpus(Base):
+    __tablename__ = "rag_corpora"
+    __table_args__ = (CheckConstraint("dimensions = 768", name="ck_rag_dimensions"),)
+    corpus_version: Mapped[str] = mapped_column(String(64), primary_key=True)
+    embedding_model: Mapped[str] = mapped_column(String(120))
+    dimensions: Mapped[int] = mapped_column(Integer)
+    input_version: Mapped[str] = mapped_column(String(80))
+    index_sha256: Mapped[str] = mapped_column(String(64))
+    chunk_count: Mapped[int] = mapped_column(Integer)
+    imported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class RagChunk(Base):
+    __tablename__ = "rag_chunks"
+    corpus_version: Mapped[str] = mapped_column(ForeignKey("rag_corpora.corpus_version"), primary_key=True)
+    chunk_id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    document_id: Mapped[str] = mapped_column(String(255))
+    content: Mapped[str] = mapped_column(Text)
+    content_sha256: Mapped[str] = mapped_column(String(64))
+    source_data: Mapped[dict] = mapped_column(JSON().with_variant(JSONB(), "postgresql"), name="payload")
+    embedding: Mapped[list] = mapped_column(Vector768().with_variant(JSON(), "sqlite"))

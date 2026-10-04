@@ -26,6 +26,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 COPY services ./services
 COPY src ./src
 COPY apps ./apps
+COPY .streamlit ./.streamlit
+COPY scripts ./scripts
 COPY migrations ./migrations
 COPY alembic.ini ./alembic.ini
 COPY deploy/modal/app.py ./deploy/modal/app.py

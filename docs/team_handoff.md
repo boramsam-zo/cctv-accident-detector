@@ -1,8 +1,11 @@
 # 팀 개발 시작 안내 — 서비스 PRD v0.2
 
-**현재 설계: Streamlit + FastAPI + S3 + Modal GPU 함수 + YOLO11s/X3D-S + Gemini VLM + 후속 RAG/보고 + 사람 검토.** GPU 함수와 백엔드 코드는 작성됐으며 실제 GPU·S3·Gemini E2E 검증은 아직 전이다.
+**현재 구성: Streamlit + FastAPI + S3 + Modal GPU 함수 + YOLO11s/X3D-S + Gemini VLM + RAG/보고 + 사람 검토.** 기존 실제 완료 작업의 단계·보고서 스키마·문서 인용·근거 파일 접근은 확인됐습니다. 새 팀원 환경에서는 전체 흐름을 다시 검증합니다.
 
 ## 새로 시작하는 팀원이 읽을 순서
+
+로컬에서 바로 실행하려면 먼저 [팀 로컬 빠른 실행](TEAM_LOCAL_QUICKSTART.md)을 따릅니다.
+실제 영상부터 RAG 보고서까지의 기존 완료 작업은 검증됐으며, 새 환경에서는 같은 흐름을 다시 확인합니다.
 
 1. [전체 PRD](../PROJECT_BRIEF.md): 무엇을 만들고 어디까지 포함하는지.
 2. [공통 API·데이터 계약](contracts/service_contract.md)과 [Modal 연결 계약](contracts/modal-inference-v1.md): 팀 간 연결 규칙.

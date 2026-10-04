@@ -64,6 +64,9 @@ override.tf.json
 !/data/README.md
 !/data/manifests/
 !/data/manifests/**
+!/data/rag/
+!/data/rag/chunks.jsonl
+!/data/rag/README.md
 /artifacts/**
 !/artifacts/README.md
 *.mp4

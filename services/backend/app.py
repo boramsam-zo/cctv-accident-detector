@@ -2,6 +2,8 @@ import hashlib
 import hmac
 import json
 import base64
+import time
+import logging
 from io import BytesIO
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
@@ -14,23 +16,37 @@ from sqlalchemy import and_, or_, select
 
 from . import models  # Register tables before create_all.
 from .db import make_session_factory
-from .gemini_vlm import GeminiVLM
-from .models import Asset, Event, Idempotency, Job, Review, Run, Video
+from .gemini_vlm import DEFAULT_ANALYSIS_PROMPT, PROMPT_PRESETS, GeminiVLM
+from .models import AnalysisProfile, Asset, Event, Idempotency, Job, Review, Run, Video
 from .modal_service import ModalGateway, ModalWorker
-from .pod import PodCoordinator, initial_result
+from .result_state import initial_result
 from .settings import Settings
 from .storage import S3Storage
 from .video_probe import probe_mp4
 from .worker import TERMINAL, EnrichmentWorker
 
 
+class VlmOptions(BaseModel):
+    model: str = Field(min_length=1, max_length=120, pattern=r"^[A-Za-z0-9._:/-]+$")
+    prompt: str = Field(default="", max_length=12000)
+    prompt_mode: str = Field(default="prepend", pattern=r"^(prepend|replace)$")
+
+
+class VlmCheckRequest(BaseModel):
+    model: str = Field(min_length=1, max_length=120, pattern=r"^[A-Za-z0-9._:/-]+$")
+
+
 class JobRequest(BaseModel):
     source_video_id: str
     analysis_profile_id: str
+    vlm: VlmOptions | None = None
+    defer_vlm: bool = False
 
 
 class RunRequest(BaseModel):
     analysis_profile_id: str
+    vlm: VlmOptions | None = None
+    defer_vlm: bool = False
 
 
 class ReviewRequest(BaseModel):
@@ -39,40 +55,6 @@ class ReviewRequest(BaseModel):
     decision: str
     note: str = ""
     expected_review_revision: int = Field(ge=0)
-
-
-class WorkerRegistration(BaseModel):
-    pod_id: str
-    worker_instance_id: str
-    started_at: datetime
-    models: dict
-
-
-class WorkerHeartbeat(BaseModel):
-    status: str
-    gpu_memory_used_bytes: int | None = None
-    active_run_id: str | None = None
-    processed_pts: float | None = None
-    sent_at: datetime
-
-
-class EventRegistration(BaseModel):
-    schema_version: str
-    event_id: str
-    sequence_number: int = Field(ge=0)
-    worker_instance_id: str
-    start_seconds: float
-    end_seconds: float
-    candidate_time_s: float = Field(ge=0)
-    manifest_key: str
-    manifest_sha256: str
-    detected_at: datetime
-
-
-class RunCompletion(BaseModel):
-    worker_instance_id: str
-    manifest_key: str
-    manifest_sha256: str
 
 
 def _id(prefix: str) -> str:
@@ -165,12 +147,6 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
         # This identity is only suitable for restricted team demos, not public user authentication.
         return x_actor_id or "team-demo"
 
-    def pod_auth(authorization: str | None = Header(default=None)) -> None:
-        """Runpod 내부 API의 worker 토큰을 확인한다."""
-        token = authorization.removeprefix("Bearer ") if authorization else ""
-        if not settings.pod_worker_token or not hmac.compare_digest(token, settings.pod_worker_token):
-            raise _error(401, "AUTHENTICATION_REQUIRED", "Valid Pod token required")
-
     def get_storage():
         """주입된 저장소를 사용하거나 S3 클라이언트를 지연 생성한다."""
         if app.state.storage is None:
@@ -182,7 +158,12 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
         """Gemini 클라이언트와 저장소를 연결한 후처리 worker를 만든다."""
         if app.state.gemini is None:
             app.state.gemini = GeminiVLM(settings.gemini_api_key, settings.gemini_model)
-        return EnrichmentWorker(sessions, get_storage(), app.state.gemini, settings)
+        from .rag import GeminiRag
+
+        if settings.rag_enabled and not hasattr(app.state, "rag"):
+            app.state.rag = GeminiRag(app.state.gemini.client, settings)
+        return EnrichmentWorker(sessions, get_storage(), app.state.gemini, settings,
+                                rag=getattr(app.state, "rag", None) if settings.rag_enabled else None)
 
     app.state.get_enrichment_worker = get_enrichment_worker
 
@@ -195,10 +176,6 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
 
     app.state.get_modal_worker = get_modal_worker
 
-    def coordinator():
-        """Runpod 작업 조정 서비스를 현재 의존성으로 구성한다."""
-        return PodCoordinator(sessions, get_storage(), settings)
-
     def video_payload(video: Video, *, include_hash: bool = False) -> dict:
         """영상 DB 행을 공개 API의 영상 응답 형식으로 변환한다."""
         value = {"source_video_id": video.id, "file_name": video.filename,
@@ -209,17 +186,49 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
             value.update(upload_status="ready", sha256=video.sha256)
         return value
 
-    def pod_call(callback, *args):
-        """Runpod 계약 충돌을 HTTP 409 응답으로 변환하며 작업을 호출한다."""
-        try:
-            return callback(*args)
-        except ValueError as exc:
-            raise _error(409, "POD_CONTRACT_CONFLICT", "Pod request conflicts with run state") from exc
+    def profile_payload(profile: AnalysisProfile) -> dict:
+        return {"analysis_profile_id": profile.id, "display_name": profile.display_name,
+                "description": profile.description, "is_default": False,
+                "enabled": profile.enabled, "models": profile.models,
+                "created_at": profile.created_at}
+
+    def profile_snapshot(db, profile_id: str) -> dict:
+        if profile_id == settings.analysis_profile_id:
+            return {"id": profile_id, "source": "modal_secret"}
+        profile = db.get(AnalysisProfile, profile_id)
+        if profile is None or not profile.enabled:
+            raise _error(422, "PROFILE_NOT_FOUND", "Unknown analysis profile")
+        return {"id": profile.id, "source": "registered", "models": profile.models}
 
     @app.get("/health")
     def health():
         """프로세스의 기본 HTTP 응답 상태를 반환한다."""
         return {"status": "ok"}
+
+    @app.get("/api/v1/rag/status")
+    def rag_status(actor: str = Depends(auth)):
+        """Validate the retrieval store without making any Gemini requests."""
+        if not settings.rag_enabled:
+            return {"status": "disabled", "store": settings.rag_store}
+        from .rag import GeminiRag
+
+        rag = None
+        try:
+            rag = GeminiRag(None, settings)
+            rows, _, version = rag._index()
+            if not rows:
+                raise ValueError("empty_rag_corpus")
+            return {"status": "ready", "store": settings.rag_store,
+                    "chunk_count": len(rows), "corpus_version": version,
+                    "embedding_model": settings.rag_embedding_model,
+                    "dimensions": settings.rag_embedding_dimensions}
+        except Exception as exc:
+            logging.getLogger(__name__).error("RAG readiness failed: %s", type(exc).__name__)
+            return {"status": "failed", "store": settings.rag_store,
+                    "message": "검색 저장소·임베딩 설정을 확인하세요. 백엔드 로그에서 상세 원인을 확인할 수 있습니다."}
+        finally:
+            if rag is not None and rag.engine is not None:
+                rag.engine.dispose()
 
     @app.post("/api/v1/videos", status_code=201)
     def upload_video(
@@ -279,10 +288,96 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
     @app.get("/api/v1/analysis-profiles")
     def analysis_profiles(actor: str = Depends(auth)):
         """현재 사용 가능한 분석 프로필을 반환한다."""
-        return {"items": [{"analysis_profile_id": settings.analysis_profile_id,
-                           "display_name": "기본 사고 의심 분석",
-                           "description": "X3D-S 후보 탐색과 YOLO11s 객체 정보를 제공합니다.",
-                           "is_default": True, "enabled": True}]}
+        legacy = {"analysis_profile_id": settings.analysis_profile_id,
+                  "display_name": "기본 사고 의심 분석",
+                  "description": "Modal Secret의 X3D-S·YOLO 가중치를 사용합니다.",
+                  "is_default": True, "enabled": True, "models": None}
+        with sessions() as db:
+            rows = db.scalars(select(AnalysisProfile).where(AnalysisProfile.enabled.is_(True))
+                              .order_by(AnalysisProfile.created_at.desc())).all()
+            return {"items": [legacy, *(profile_payload(row) for row in rows)]}
+
+    @app.post("/api/v1/analysis-profiles", status_code=201)
+    def create_analysis_profile(
+        display_name: str = Form(..., min_length=1, max_length=200),
+        description: str = Form("", max_length=2000),
+        accident_family: str = Form("X3D-S", min_length=1, max_length=80),
+        object_family: str = Form("YOLO11", min_length=1, max_length=80),
+        accident_weights: UploadFile = File(...), object_weights: UploadFile = File(...),
+        actor: str = Depends(auth),
+    ):
+        """두 모델 가중치를 S3에 올리고 선택 가능한 불변 프로필을 등록한다."""
+        allowed_suffixes = (".pt", ".pth")
+        if accident_family != "X3D-S" or object_family != "YOLO11":
+            raise _error(422, "MODEL_FAMILY_NOT_SUPPORTED",
+                         "Current pipeline supports X3D-S and Ultralytics YOLO11 weights")
+        if not (accident_weights.filename or "").lower().endswith(allowed_suffixes):
+            raise _error(422, "INVALID_MODEL_WEIGHT", "Accident weight must be .pt or .pth")
+        if not (object_weights.filename or "").lower().endswith(allowed_suffixes):
+            raise _error(422, "INVALID_MODEL_WEIGHT", "Object weight must be .pt or .pth")
+        profile_id = _id("profile")
+        prefix = f"{settings.s3_key_prefix}model-profiles/{profile_id}/"
+        storage_service = get_storage()
+        uploaded_keys = []
+        try:
+            accident = storage_service.put_model_weight(
+                prefix + "accident.pt", accident_weights.file, settings.max_model_weight_bytes)
+            uploaded_keys.append(accident.key)
+            objects = storage_service.put_model_weight(
+                prefix + "objects.pt", object_weights.file, settings.max_model_weight_bytes)
+            uploaded_keys.append(objects.key)
+            models = {
+                "accident": {"family": accident_family, "weights": {
+                    "bucket": storage_service.bucket, "key": accident.key,
+                    "sha256": accident.sha256, "size_bytes": accident.size,
+                    "file_name": accident_weights.filename}},
+                "objects": {"family": object_family, "weights": {
+                    "bucket": storage_service.bucket, "key": objects.key,
+                    "sha256": objects.sha256, "size_bytes": objects.size,
+                    "file_name": object_weights.filename}},
+            }
+            with sessions.begin() as db:
+                profile = AnalysisProfile(id=profile_id, display_name=display_name.strip(),
+                                          description=description.strip(), models=models)
+                db.add(profile)
+                db.flush()
+                response = profile_payload(profile)
+            return response
+        except ValueError as exc:
+            for key in uploaded_keys:
+                storage_service.delete(key)
+            raise _error(422, "INVALID_MODEL_WEIGHT", str(exc)) from exc
+        except Exception:
+            for key in uploaded_keys:
+                storage_service.delete(key)
+            raise
+
+    @app.get("/api/v1/vlm-options")
+    def vlm_options(actor: str = Depends(auth)):
+        """작업별 VLM 설정 화면에 사용할 허용 모델과 기본값을 반환한다."""
+        models = settings.gemini_models or (settings.gemini_model,)
+        return {"models": list(models), "default_model": settings.gemini_model,
+                "prompt_default": DEFAULT_ANALYSIS_PROMPT,
+                "prompt_presets": list(PROMPT_PRESETS),
+                "default_prompt_preset": "scene-facts-v2",
+                "prompt_modes": ["replace", "prepend"],
+                "default_prompt_mode": "replace"}
+
+    @app.post("/api/v1/vlm-options/check")
+    def check_vlm(req: VlmCheckRequest, actor: str = Depends(auth)):
+        """허용된 Gemini 모델에 작은 요청을 보내 현재 API 응답 상태를 확인한다."""
+        if req.model not in (settings.gemini_models or (settings.gemini_model,)):
+            raise _error(422, "VLM_MODEL_NOT_ALLOWED", "Gemini model is not enabled")
+        started = time.perf_counter()
+        try:
+            result = get_enrichment_worker().gemini.check(req.model)
+        except Exception as exc:
+            return {"available": False, "model": req.model,
+                    "latency_ms": round((time.perf_counter() - started) * 1000),
+                    "error_code": type(exc).__name__}
+        return {"available": True, **result,
+                "latency_ms": round((time.perf_counter() - started) * 1000),
+                "error_code": None}
 
     @app.post("/api/v1/jobs", status_code=202)
     def create_job(req: JobRequest, idempotency_key: str = Header(..., alias="Idempotency-Key"), actor: str = Depends(auth)):
@@ -291,15 +386,20 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
             old = _idempotency(db, actor, "POST /jobs", idempotency_key, req.model_dump())
             if old:
                 return old
-            if req.analysis_profile_id != settings.analysis_profile_id:
-                raise _error(422, "PROFILE_NOT_FOUND", "Unknown analysis profile")
+            selected_profile = profile_snapshot(db, req.analysis_profile_id)
+            vlm = req.vlm or VlmOptions(model=settings.gemini_model)
+            if vlm.model not in (settings.gemini_models or (settings.gemini_model,)):
+                raise _error(422, "VLM_MODEL_NOT_ALLOWED", "Gemini model is not enabled")
             video = db.get(Video, req.source_video_id)
             if video is None:
                 raise _error(404, "RESOURCE_NOT_FOUND", "Video not found")
             job_id, run_id = _id("job"), _id("run")
             db.add(Job(id=job_id, video_id=req.source_video_id, active_run_id=run_id))
+            vlm_config = vlm.model_dump()
+            vlm_config["manual_start"] = req.defer_vlm
             run = Run(id=run_id, job_id=job_id, profile_id=req.analysis_profile_id,
-                      result=initial_result(video))
+                      result=initial_result(video, {"vlm": vlm_config,
+                                                    "analysis_profile": selected_profile}))
             db.add(run)
             db.flush()
             response = {"job_id": job_id, "run_id": run_id, "status": run.status,
@@ -349,8 +449,63 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
                     "video": result.get("video") or {"duration_seconds": video.duration_seconds, "camera_id": video.camera_id,
                         "recorded_at": video.recorded_at, "original_asset_id": f"source-{video.id}"},
                     "coverage": result.get("coverage"), "models": result.get("models"),
+                    "execution_config": result.get("execution_config", {}),
                     "stages": result.get("stages"), "candidates": result.get("candidates", []),
                     "errors": [run.error] if run.error else result.get("errors", [])}
+
+    @app.post("/api/v1/jobs/{job_id}/vlm", status_code=202)
+    def start_vlm(job_id: str, idempotency_key: str = Header(..., alias="Idempotency-Key"),
+                  actor: str = Depends(auth)):
+        """Start pending VLM work or retry only the candidates that failed VLM."""
+        payload = {"action": "start_vlm"}
+        with sessions.begin() as db:
+            old = _idempotency(db, actor, f"POST /jobs/{job_id}/vlm", idempotency_key, payload)
+            if old:
+                return old
+            job = db.get(Job, job_id)
+            if not job:
+                raise _error(404, "RESOURCE_NOT_FOUND", "Job not found")
+            run = db.get(Run, job.active_run_id)
+            result = dict(run.result or {})
+            candidates = list(result.get("candidates") or [])
+            if run.status == "awaiting_vlm":
+                retry_count = len(candidates)
+            elif run.status in TERMINAL:
+                retry_count = 0
+                reset_candidates = []
+                for candidate in candidates:
+                    if (candidate.get("vlm") or {}).get("status") != "failed":
+                        reset_candidates.append(candidate)
+                        continue
+                    event = db.get(Event, candidate["event_id"])
+                    event_data = dict(event.data)
+                    for key in ("vlm", "rag_input", "retrieval", "report"):
+                        event_data.pop(key, None)
+                    event.data = event_data
+                    reset_candidates.append(event_data)
+                    retry_count += 1
+                candidates = reset_candidates
+                result["candidates"] = candidates
+            else:
+                raise _error(409, "VLM_NOT_AWAITING_START",
+                             "Run is not waiting for a VLM request or retry")
+            if not candidates:
+                raise _error(409, "VLM_HAS_NO_CANDIDATES", "Run has no candidates to analyze")
+            if retry_count == 0:
+                raise _error(409, "VLM_HAS_NO_FAILED_CANDIDATES",
+                             "Run has no failed VLM candidates to retry")
+            stages = dict(result.get("stages") or {})
+            stages["vlm"] = {"status": "running", "reason_code": None}
+            stages["rag"] = {"status": "pending", "reason_code": None}
+            stages["report"] = {"status": "pending", "reason_code": None}
+            result["stages"] = stages
+            run.result = result
+            run.status = "enriching"
+            response = {"job_id": job.id, "run_id": run.id, "status": run.status,
+                        "candidate_count": retry_count}
+            _idempotency(db, actor, f"POST /jobs/{job_id}/vlm", idempotency_key,
+                         payload, response)
+            return response
 
     @app.post("/api/v1/jobs/{job_id}/runs", status_code=202)
     def rerun(job_id: str, req: RunRequest, idempotency_key: str = Header(..., alias="Idempotency-Key"), actor: str = Depends(auth)):
@@ -364,11 +519,17 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
                 raise _error(404, "RESOURCE_NOT_FOUND", "Job not found")
             if db.get(Run, job.active_run_id).status not in TERMINAL:
                 raise _error(409, "RUN_ALREADY_ACTIVE", "Current run has not finished")
-            if req.analysis_profile_id != settings.analysis_profile_id:
-                raise _error(422, "PROFILE_NOT_FOUND", "Unknown analysis profile")
+            selected_profile = profile_snapshot(db, req.analysis_profile_id)
+            vlm = req.vlm or VlmOptions(model=settings.gemini_model)
+            if vlm.model not in (settings.gemini_models or (settings.gemini_model,)):
+                raise _error(422, "VLM_MODEL_NOT_ALLOWED", "Gemini model is not enabled")
             run_id = _id("run")
+            vlm_config = vlm.model_dump()
+            vlm_config["manual_start"] = req.defer_vlm
             run = Run(id=run_id, job_id=job.id, profile_id=req.analysis_profile_id,
-                      result=initial_result(db.get(Video, job.video_id)))
+                      result=initial_result(db.get(Video, job.video_id),
+                                            {"vlm": vlm_config,
+                                             "analysis_profile": selected_profile}))
             db.add(run)
             job.active_run_id = run_id
             db.flush()
@@ -445,31 +606,5 @@ def create_app(settings: Settings | None = None, *, sessions=None, storage=None,
                                "report_revision": r.report_revision, "decision": r.decision,
                                "note": r.note or None, "reviewed_at": r.created_at} for r in rows[:limit]],
                     "next_cursor": _cursor(rows[limit - 1]) if len(rows) > limit else None}
-
-    @app.post("/internal/v1/workers/register", status_code=201)
-    def register_worker(req: WorkerRegistration, _: None = Depends(pod_auth)):
-        """Runpod worker 인스턴스와 모델 정보를 등록한다."""
-        return pod_call(coordinator().register, req.model_dump())
-
-    @app.post("/internal/v1/workers/{worker_id}/heartbeat")
-    def worker_heartbeat(worker_id: str, req: WorkerHeartbeat, _: None = Depends(pod_auth)):
-        """Runpod worker의 상태와 실행 진행 시각을 갱신한다."""
-        return pod_call(coordinator().heartbeat, worker_id, req.model_dump())
-
-    @app.post("/internal/v1/workers/{worker_id}/claim")
-    def claim_run(worker_id: str, _: None = Depends(pod_auth)):
-        """대기 중인 실행 하나를 worker에 할당한다."""
-        assignment = pod_call(coordinator().claim, worker_id)
-        return {"assignment": assignment}
-
-    @app.post("/internal/v1/runs/{run_id}/events", status_code=201)
-    def register_event(run_id: str, req: EventRegistration, _: None = Depends(pod_auth)):
-        """Runpod의 사고 후보 이벤트와 S3 근거를 검증해 등록한다."""
-        return pod_call(coordinator().event, run_id, req.model_dump())
-
-    @app.post("/internal/v1/runs/{run_id}/complete")
-    def complete_run(run_id: str, req: RunCompletion, _: None = Depends(pod_auth)):
-        """Runpod 최종 manifest를 검증하고 분석 실행 상태를 확정한다."""
-        return pod_call(coordinator().complete, run_id, req.model_dump())
 
     return app

@@ -155,6 +155,17 @@ RAG 입력은 검증된 관찰 요약·질의·문서 종류/적용 지역 등 �
 
 ## 7. 프로필과 미정 설정
 
+### 2026-10-04 VLM 관찰 계약 확장
+
+새 VLM 요청은 영상 binary part와 `vlm-input-v2` JSON을 함께 사용하며, 출력은 `scene-facts-v2`입니다.
+`vlm.raw_output`에는 사고 여부·8개 위험/환경 특징의 `present/absent/unknown`, 근거 asset ID와
+클립/원본 시각, 환경·관련 객체·사고 유형·불확실성이 저장됩니다.
+`vlm.request.input`에는 실제 part 순서와 제공한 시각 매핑이 보존됩니다.
+`vlm.validation`은 schema/provenance와 실제 관찰 정확도 상태를 구분합니다.
+`rag_input`에는 관찰 특징과 기존 소비자를 위한 bool/null 별칭을 함께 보존합니다.
+`operator_confirmed`는 VLM 판정 별칭이며 `human_review` 승인을 의미하지 않습니다.
+기존 저장 결과는 유지합니다. 적용 방법과 실제 계약 예시는 [VLM 계약·평가 안내](../VLM_FACTS_VALIDATION.md)를 따릅니다.
+
 `analysis_profile_id`는 객체/사고 가중치·해시, 모델별 입력 크기·샘플링·정규화·클래스 맵, 창 길이·간격, 판정/후처리, 근거 전후 길이, 최대 파일·영상 범위, VLM/RAG 버전을 참조한다. 미등록 프로필은 제출을 거절한다. 모델 이름만으로 R3D의 2초·16장·224 설정을 X3D-S에 이식하지 않는다.
 
 개발 제안값: 한 요청 한 영상, UI 상태 조회 3초 간격, BE 회수 5초 간격·오류 시 backoff, GPU 동시 작업 1. 이 값들은 품질·응답시간 보장이 아니다. 최대 영상 길이·파일 크기·GPU timeout·재시도 상한·금액은 비용 측정 전 미정이며 실제 실행 프로필에 값을 채워야 한다.

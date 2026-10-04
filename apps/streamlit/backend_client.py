@@ -50,6 +50,9 @@ class BackendClient:
     def health(self) -> dict:
         return self.request("GET", "/health")
 
+    def rag_status(self) -> dict:
+        return self.request("GET", "/api/v1/rag/status")
+
     def list_videos(self) -> dict:
         return self.request("GET", "/api/v1/videos", params={"limit": 100})
 
@@ -62,15 +65,46 @@ class BackendClient:
                             data={"camera_id": camera_id} if camera_id else {})
 
     def analysis_profile(self) -> str:
-        items = self.request("GET", "/api/v1/analysis-profiles")["items"]
+        items = self.analysis_profiles()
         profile = next((item for item in items if item["is_default"] and item["enabled"]), None)
         if profile is None:
             raise BackendError("사용 가능한 분석 프로필이 없습니다.")
         return profile["analysis_profile_id"]
 
-    def create_job(self, video_id: str, profile_id: str, key: str) -> dict:
+    def analysis_profiles(self) -> list[dict]:
+        return self.request("GET", "/api/v1/analysis-profiles")["items"]
+
+    def create_analysis_profile(self, *, display_name: str, description: str,
+                                accident_family: str, object_family: str,
+                                accident_name: str, accident_data: bytes,
+                                object_name: str, object_data: bytes) -> dict:
+        return self.request(
+            "POST", "/api/v1/analysis-profiles", timeout=600,
+            data={"display_name": display_name, "description": description,
+                  "accident_family": accident_family, "object_family": object_family},
+            files={
+                "accident_weights": (accident_name, accident_data, "application/octet-stream"),
+                "object_weights": (object_name, object_data, "application/octet-stream"),
+            },
+        )
+
+    def vlm_options(self) -> dict:
+        return self.request("GET", "/api/v1/vlm-options")
+
+    def check_vlm(self, model: str) -> dict:
+        return self.request("POST", "/api/v1/vlm-options/check", json={"model": model})
+
+    def create_job(self, video_id: str, profile_id: str, key: str, *,
+                   vlm_model: str | None = None, vlm_prompt: str = "",
+                   vlm_prompt_mode: str = "prepend", defer_vlm: bool = False) -> dict:
+        payload = {"source_video_id": video_id, "analysis_profile_id": profile_id}
+        if defer_vlm:
+            payload["defer_vlm"] = True
+        if vlm_model:
+            payload["vlm"] = {"model": vlm_model, "prompt": vlm_prompt,
+                              "prompt_mode": vlm_prompt_mode}
         return self.request("POST", "/api/v1/jobs", idempotency_key=key,
-                            json={"source_video_id": video_id, "analysis_profile_id": profile_id})
+                            json=payload)
 
     def list_jobs(self, video_id: str | None = None) -> dict:
         params = {"limit": 100}
@@ -96,6 +130,10 @@ class BackendClient:
 
     def get_job(self, job_id: str) -> dict:
         return self.request("GET", f"/api/v1/jobs/{job_id}")
+
+    def start_vlm(self, job_id: str, key: str) -> dict:
+        return self.request("POST", f"/api/v1/jobs/{job_id}/vlm",
+                            idempotency_key=key)
 
     def rerun_job(self, job_id: str, profile_id: str, key: str) -> dict:
         return self.request("POST", f"/api/v1/jobs/{job_id}/runs", idempotency_key=key,

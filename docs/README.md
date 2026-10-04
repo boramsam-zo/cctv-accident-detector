@@ -4,6 +4,9 @@
 
 현재 구현 요약은 [README 현재 상태](../README.md#현재-상태), 실행·검증 이력은 [진행 기록](PROGRESS.md)을 참고합니다.
 
+첨부 청크 기반 검색·보고서·화면 연결 설계는 [RAG 적용 기획](RAG_INTEGRATION_PLAN.md)을 참고합니다. 청크 분석 수치와 출처 목록은 [분석 기록](rag/chunks-analysis.json)에 있습니다.
+구현된 3회 호출 경로의 출력은 [기관 리포트 JSON 계약](contracts/agency-report-v1.md), 인덱스 초기화는 [RAG 데이터 관리](../data/rag/README.md)를 따릅니다.
+
 | 문서 | 내용 |
 |---|---|
 | [프로젝트 폴더 구조](PROJECT_FOLDER_STRUCTURE.md) | 기존 모델·학습 패키지와 서비스 폴더 추가 시점 |

@@ -19,6 +19,23 @@ x-app-common: &app-common
     MODAL_ENVIRONMENT: ${MODAL_ENVIRONMENT:-dev}
     MODAL_APP_NAME: ${MODAL_APP_NAME:-cctv-accident-inference}
     MODAL_FUNCTION_NAME: ${MODAL_FUNCTION_NAME:-analyze_video_job}
+    GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.6-flash}
+    GEMINI_MODELS: ${GEMINI_MODELS:-}
+    MAX_MODEL_WEIGHT_BYTES: ${MAX_MODEL_WEIGHT_BYTES:-536870912}
+    ANALYSIS_PROFILE_ID: ${ANALYSIS_PROFILE_ID:-received-yolo-x3ds-v1}
+    MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-104857600}
+    MAX_GEMINI_CLIP_BYTES: ${MAX_GEMINI_CLIP_BYTES:-18874368}
+    RAG_ENABLED: ${RAG_ENABLED:-true}
+    RAG_STORE: ${RAG_STORE:-postgres}
+    RAG_CORPUS_VERSION: ${RAG_CORPUS_VERSION:-}
+    RAG_CORPUS_PATH: /app/data/rag/chunks.jsonl
+    RAG_INDEX_PATH: /app/data/rag/embeddings.json
+    RAG_EMBEDDING_MODEL: ${RAG_EMBEDDING_MODEL:-gemini-embedding-001}
+    RAG_EMBEDDING_DIMENSIONS: ${RAG_EMBEDDING_DIMENSIONS:-768}
+    RAG_TOP_K: ${RAG_TOP_K:-8}
+    RAG_MIN_SIMILARITY: ${RAG_MIN_SIMILARITY:-0.35}
+  volumes:
+    - ../../data/rag:/app/data/rag:ro
   restart: unless-stopped
 
 services:
@@ -37,6 +54,63 @@ services:
       retries: 20
     restart: unless-stopped
 
+  mlflow-db-init:
+    image: pgvector/pgvector:pg17
+    profiles: ["mlflow"]
+    environment:
+      PGHOST: postgres
+      PGUSER: cctv
+      PGPASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      PGDATABASE: cctv
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        if [ "$$(psql -tAc "SELECT 1 FROM pg_database WHERE datname='mlflow'")" != "1" ]; then
+          psql -v ON_ERROR_STOP=1 -c "CREATE DATABASE mlflow"
+        fi
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  mlflow:
+    build:
+      context: ../..
+      dockerfile: deploy/mlflow/Dockerfile
+      args:
+        MLFLOW_VERSION: ${MLFLOW_VERSION:-v3.16.1}
+    image: cctv-accident-mlflow:${MLFLOW_VERSION:-v3.16.1}
+    profiles: ["mlflow"]
+    init: true
+    environment:
+      AWS_REGION: ${AWS_REGION:-ap-northeast-2}
+      AWS_DEFAULT_REGION: ${AWS_REGION:-ap-northeast-2}
+    command:
+      - mlflow
+      - server
+      - --host
+      - 0.0.0.0
+      - --port
+      - "5000"
+      - --backend-store-uri
+      - postgresql+psycopg2://cctv:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/mlflow
+      - --artifacts-destination
+      - s3://${S3_BUCKET:?Set the video bucket in .env}/${MLFLOW_ARTIFACT_PREFIX:?Set MLFLOW_ARTIFACT_PREFIX in .env}
+      - --allowed-hosts
+      - ${MLFLOW_ALLOWED_HOSTS:-localhost:*,127.0.0.1:*,mlflow:5000}
+    depends_on:
+      mlflow-db-init:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:5000:5000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
   migrate:
     <<: *app-common
     command: ["alembic", "upgrade", "head"]
@@ -48,6 +122,9 @@ services:
   backend:
     <<: *app-common
     command: ["uvicorn", "services.backend.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      <<: *app-environment
+      GEMINI_API_KEY: ${GEMINI_API_KEY:?Set GEMINI_API_KEY in .env}
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -65,12 +142,20 @@ services:
     environment:
       <<: *app-environment
       GEMINI_API_KEY: ${GEMINI_API_KEY:?Set GEMINI_API_KEY in .env}
-      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.6-flash}
       MODAL_TOKEN_ID: ${MODAL_TOKEN_ID:?Set MODAL_TOKEN_ID in .env}
       MODAL_TOKEN_SECRET: ${MODAL_TOKEN_SECRET:?Set MODAL_TOKEN_SECRET in .env}
     depends_on:
       migrate:
         condition: service_completed_successfully
+
+  rag-init:
+    <<: *app-common
+    profiles: ["setup"]
+    command: ["python", "-m", "scripts.prepare_local_rag"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
 
   streamlit:
     <<: *app-common
@@ -84,6 +169,30 @@ services:
         condition: service_healthy
     ports:
       - "8501:8501"
+
+  test-ui:
+    <<: *app-common
+    profiles: ["test"]
+    command: ["streamlit", "run", "apps/streamlit/e2e_test.py", "--server.address", "0.0.0.0", "--server.port", "8502", "--server.headless", "true", "--server.maxUploadSize", "1024"]
+    environment:
+      BACKEND_API_URL: http://backend:8000
+      APP_API_KEY: ${APP_API_KEY:?Set APP_API_KEY in .env}
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8502:8502"
+
+  rag-index:
+    <<: *app-common
+    profiles: ["setup"]
+    command: ["python", "-m", "scripts.build_rag_index"]
+    environment:
+      <<: *app-environment
+      GEMINI_API_KEY: ${GEMINI_API_KEY:?Set GEMINI_API_KEY in .env}
+    volumes:
+      - ../../data/rag:/app/data/rag
+    restart: "no"
 
 volumes:
   postgres_data:

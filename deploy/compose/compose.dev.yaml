@@ -1,0 +1,19 @@
+# Local source mounts: frontend and API reload without rebuilding the image.
+# Restart the worker after editing its Python code.
+services:
+  backend:
+    command: ["uvicorn", "services.backend.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    volumes:
+      - ../../services:/app/services:ro
+  worker:
+    volumes:
+      - ../../services:/app/services:ro
+      - ../../scripts:/app/scripts:ro
+  streamlit:
+    volumes:
+      - ../../apps:/app/apps:ro
+      - ../../.streamlit:/app/.streamlit:ro
+  test-ui:
+    volumes:
+      - ../../apps:/app/apps:ro
+      - ../../.streamlit:/app/.streamlit:ro

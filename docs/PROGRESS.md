@@ -1,5 +1,18 @@
 # 팀 진행 기록
 
+## 2026-10-04 — 관찰 JSON 계약과 실제 서비스 E2E
+
+- 변경: scene-facts-v2 관찰 JSON, 근거 ID·시각 검증, 사실 기반 RAG 검색과 산불 근거 적용 검증을 연결했다. 기관 안내·팀 로컬 실행 설정도 함께 반영한다.
+- 실제 환경: 로컬 Docker API·worker·PostgreSQL/pgvector·Streamlit, 팀 S3·배포된 Modal GPU 함수·Gemini API를 사용했다. 대응 코퍼스 275개, 임베딩 768차원.
+- 정상 장면: `job-cdb51c11cc7d4504bd6d42309df8e41a`, 새 업로드부터 전체 단계 completed, 57.2초. VLM은 사고 미관찰로 판단했고 기관 목록은 빈 배열이었다.
+- 사고 장면: `job-1785636c477040a9a1cd1564320c144a`, 최종 `run-eb4bd868b27a4b6ca4ceeb6738eb9dcd`, 전체 단계 completed. 소방·경찰·도로관리기관의 연락 대상 안내, 전달 사항과 인용 근거가 연결된 현장 참고항목을 확인했다. 마지막 VLM 재시도부터 검증 완료까지 21초이며 업로드·GPU 처리 전체 소요 시간은 아니다.
+- 발견·수정: 고정 버전값 출력 오류, absent 관찰의 근거 누락, 제공되지 않은 근거 ID 출력이 발생했다. 생성 스키마의 singleton enum·anyOf·minItems·요청별 ID enum을 보강했고, 서버 검증 기준은 유지했다.
+- 외부 장애: gemini-3.6-flash의 503 과부하를 확인했다. VLM 실패 시 partial·RAG/report skipped를 확인했고 VLM만 재시도했다. 최종 두 장면 검증에는 gemini-3.5-flash-lite를 사용했다. 예시 .env 기본 모델도 이 모델로 설정한다.
+- 저장·UI: 근거 클립/주석 클립/프레임 206 응답, 두 UI health 200, 새 E2E 이벤트의 uncertain 검토 저장·동일 키 재요청·재조회 확인. 실제 사고 결과를 Streamlit AppTest로 렌더링해 기관 카드와 JSON 다운로드를 확인했다.
+- 회귀: Docker에서 팀원 안내의 테스트 명령을 실행해 121개 테스트와 58개 서브테스트 통과. 기존 Starlette httpx deprecation 경고 1개. 데모 계약 파일 마운트가 빠진 테스트 명령도 수정했다.
+- 기록: 상세 JSON은 실행자의 `.local/e2e-live-result.json`, `.local/e2e-live-summary.json`, `.local/e2e-accident-lite-result.json`, `.local/e2e-accident-lite-summary.json`에 저장한다. 영상·자격 증명·상세 결과는 Git에 포함하지 않는다.
+- 검증 범위: 기능 E2E 표본 두 건이며 모델 정확도·일반 성능·법적 적용 정확도 벤치마크가 아니다. 사람이 검토한 클립 정답으로 별도 평가가 필요하다.
+
 ## 2026-09-29 — Modal 비동기 GPU 흐름으로 문서 정리
 
 - 변경: 현재 GPU 실행 기준을 Modal `spawn()`·`modal_call_id`·완료 조회·S3 manifest 검증으로 통일했다. 업로드 MP4 전체를 오프라인으로 분석하며 부분 event push는 현재 범위가 아니다.

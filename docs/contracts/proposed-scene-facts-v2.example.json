@@ -1,0 +1,29 @@
+{
+  "schema_version": "scene-facts-v2-proposal",
+  "example_only": true,
+  "event_id": "event-demo-mountain-fire",
+  "description": "산길로 보이는 도로에 차량과 불꽃이 보입니다. 충돌 순간과 주변 산림의 연소 여부는 확인되지 않습니다.",
+  "accident_presence": {"state": "unknown", "evidence": [], "reason": "충돌 순간을 확인하지 못함"},
+  "accident_type": null,
+  "involved_objects": [],
+  "scene_conditions": {
+    "day_time": {"value": "day", "evidence": [{"asset_id": "ev-frame-1", "source_time_seconds": 15.0}]},
+    "weather": {"value": null, "evidence": []}
+  },
+  "features": {
+    "mountain_road": {"state": "present", "evidence": [{"asset_id": "ev-frame-1", "clip_time_seconds": null, "source_time_seconds": 15.0}]},
+    "visible_vegetation_near_fire": {"state": "unknown", "evidence": []},
+    "flames": {"state": "present", "evidence": [{"asset_id": "ev-frame-1", "clip_time_seconds": null, "source_time_seconds": 15.0}]},
+    "smoke": {"state": "unknown", "evidence": []},
+    "debris": {"state": "unknown", "evidence": []},
+    "lane_blockage": {"state": "unknown", "evidence": []},
+    "affected_people_visible": {"state": "unknown", "evidence": []},
+    "visible_forest_burning": {"state": "unknown", "evidence": []}
+  },
+  "uncertainties": [
+    "충돌 형태와 관련 차량 대수",
+    "탑승자 상태와 부상 여부",
+    "산림과 불꽃의 실제 거리 및 산림 연소 여부",
+    "차로 점유와 2차 사고 위험"
+  ]
+}
